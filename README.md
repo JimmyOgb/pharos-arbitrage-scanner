@@ -1,14 +1,21 @@
 # Pharos Arbitrage Scanner
 
+[![Production: Live](https://img.shields.io/badge/Production-Live%20on%20Vercel-00F2FE?style=flat&logo=vercel)](https://pharos-arbitrage-scanner.vercel.app)
+[![Demo Video: 1080p Walkthrough](https://img.shields.io/badge/Demo%20Video-1080p%20Walkthrough-FF0055?style=flat&logo=youtube)](demo/pharos_arbitrage_scanner_demo.mp4)
 [![CI Test Suite](https://github.com/JimmyOgb/pharos-arbitrage-scanner/actions/workflows/ci.yml/badge.svg)](https://github.com/JimmyOgb/pharos-arbitrage-scanner/actions/workflows/ci.yml)
 [![Network: Pharos Atlantic Testnet](https://img.shields.io/badge/Network-Pharos%20Atlantic%20Testnet%20(688689)-00F2FE?style=flat&logo=ethereum)](https://atlantic.pharosscan.xyz)
 [![Network: Pharos RPC](https://img.shields.io/badge/Network-Pharos%20RPC%20(1672)-7F00FF?style=flat)](https://rpc.pharos.xyz)
 [![SkillEngine: v0.2.0](https://img.shields.io/badge/SkillEngine-v0.2.0-10B981?style=flat)](https://github.com/PharosNetwork/pharos-skill-engine)
-[![Tests: 39 Passed](https://img.shields.io/badge/Tests-39%20Passed-10B981?style=flat)](reports/VERIFICATION_REPORT.md)
+[![Tests: 40 Tests](https://img.shields.io/badge/Tests-40%20(37%20Passed%2C%203%20Skipped)-10B981?style=flat)](reports/VERIFICATION_REPORT.md)
 [![Zero Simulation: Enforced](https://img.shields.io/badge/Zero%20Simulation-Fail--Closed%20Enforced-10B981?style=flat)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A high-performance algorithmic DeFi intelligence agent and fail-closed arbitrage audit engine built for **Pharos Agent Arena (Season of AI) — Task 7: Arbitrage Scanner**.
+
+- **Production Live URL**: [https://pharos-arbitrage-scanner.vercel.app](https://pharos-arbitrage-scanner.vercel.app)
+- **GitHub Repository**: [https://github.com/JimmyOgb/pharos-arbitrage-scanner](https://github.com/JimmyOgb/pharos-arbitrage-scanner)
+- **Full 1080p Walkthrough Video**: [`demo/pharos_arbitrage_scanner_demo.mp4`](demo/pharos_arbitrage_scanner_demo.mp4) (Duration: 2m 28s)
+- **Demo Generation Script**: [`scripts/generate_live_demo.py`](scripts/generate_live_demo.py)
 
 It queries **100% verified on-chain price feeds** directly from the Chainlink Self-Managed Feeds Cache on Pharos, reads real-time network gas from Pharos Atlantic Testnet, mathematically validates non-linear constant-product slippage ($x \cdot y = k$), and enforces a strict **fail-closed security policy**: zero calibrated reserves, zero fabricated market quotes, and zero synthetic execution receipts.
 
@@ -22,6 +29,8 @@ It queries **100% verified on-chain price feeds** directly from the Chainlink Se
 - **Base Points**: **200 Base Points**
 - **Demo Video Bonus**: **+50 Bonus Points** (Total: **250 points**)
 - **Official Specification**: [https://pharos-agent-arena.vercel.app/tasks/arbitrage-scanner](https://pharos-agent-arena.vercel.app/tasks/arbitrage-scanner)
+- **Production Deployment**: [https://pharos-arbitrage-scanner.vercel.app](https://pharos-arbitrage-scanner.vercel.app)
+- **Video Walkthrough Artifact**: [`demo/pharos_arbitrage_scanner_demo.mp4`](demo/pharos_arbitrage_scanner_demo.mp4)
 
 | # | Acceptance Criterion | Implementation in `pharos-arbitrage-scanner` | Automated Verification |
 |---|---|---|---|
@@ -182,9 +191,25 @@ Open **[http://localhost:8088](http://localhost:8088)** in your browser.
 
 ---
 
-## 9. Automated Testing Suite (39 Tests Passing)
+## 9. Live Demonstration Video (1080p Walkthrough)
 
-The project includes **39 automated unit, integration, and live network tests**:
+An automated 1080p 30fps screen demonstration was recorded directly from the deployed production dashboard at [https://pharos-arbitrage-scanner.vercel.app](https://pharos-arbitrage-scanner.vercel.app) using the official `live-demo-video-generator` Playwright and Edge-TTS pipeline:
+
+- **Video File**: [`demo/pharos_arbitrage_scanner_demo.mp4`](demo/pharos_arbitrage_scanner_demo.mp4)
+- **Duration**: `148.23s` (2 minutes 28 seconds)
+- **Resolution**: `1920x1080` (Full HD Landscape, 30 fps)
+- **Audio**: English voiceover narration synchronized with on-screen clicks and ripple interactions
+- **Walkthrough Script**: [`scripts/generate_live_demo.py`](scripts/generate_live_demo.py)
+
+| Scan & Audit Trail | Constant-Product AMM Math |
+|---|---|
+| ![Scan Proof](demo/preview_frame_35s.jpg) | ![AMM Math Proof](demo/preview_frame_85s.jpg) |
+
+---
+
+## 10. Automated Testing Suite (40 Tests: 37 Passed, 3 Skipped)
+
+The project includes **40 automated unit, integration, and live network tests**:
 
 ```bash
 python -m pytest tests/ -v
@@ -193,7 +218,7 @@ python -m pytest tests/ -v
 ### Test Coverage:
 - `tests/test_amm.py` (12 tests): Constant-product math, reserve boundaries, non-linear price impact, micro-volume precision.
 - `tests/test_costs.py` (5 tests): LP fees, gas conversions, waterfall deduction, fail-closed offline RPC handling.
-- `tests/test_venues.py` (6 tests): On-chain Chainlink feed parsing, AMM bytecode fail-closed checks, fixture isolation.
+- `tests/test_venues.py` (7 tests): On-chain Chainlink feed parsing, FaroSwap Mainnet audit, AMM bytecode fail-closed checks, fixture isolation.
 - `tests/test_evaluator.py` (9 tests): Live on-chain fail-closed evaluation, threshold gating, excessive slippage, negative spreads.
 - `tests/test_payload.py` (2 tests): Canonical calldata generation, execution lock enforcement, ineligible rejection.
 - `tests/test_cli.py` (3 tests): CLI arguments, machine-readable JSON outputs, 4-part audit demo execution.
@@ -201,7 +226,7 @@ python -m pytest tests/ -v
 
 ---
 
-## 10. Security Boundaries & Fail-Closed Guarantees
+## 11. Security Boundaries & Fail-Closed Guarantees
 
 1. **Zero Private Key Exposure**: The engine never requests, stores, or handles private keys, seed phrases, or wallet secrets.
 2. **Zero Simulation / Zero Synthetic Receipts**: No fake transaction hashes (`0xsim_...`) or invented test receipts are emitted.
@@ -210,7 +235,7 @@ python -m pytest tests/ -v
 
 ---
 
-## 11. Vercel Deployment Instructions
+## 12. Vercel Deployment Instructions
 
 The web visualizer in `web/` is pre-configured for zero-build deployment on Vercel:
 
@@ -228,6 +253,6 @@ The web visualizer in `web/` is pre-configured for zero-build deployment on Verc
 
 ---
 
-## 12. License
+## 13. License
 
 MIT License. Copyright (c) 2026 JimmyOgb.
