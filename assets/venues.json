@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pharos Trading Venues & Pool Configurations",
+  "venues": {
+    "pharos_swap": {
+      "id": "pharos_swap",
+      "name": "PharosSwap V2",
+      "type": "AMM_CONSTANT_PRODUCT",
+      "fee_bps": 30,
+      "fee_ratio": 0.003,
+      "gas_units_estimate": 140000,
+      "description": "Canonical Uniswap V2-style constant-product AMM on Pharos",
+      "status": "CALIBRATED_SIMULATION"
+    },
+    "lighthouse_dex": {
+      "id": "lighthouse_dex",
+      "name": "Lighthouse DEX",
+      "type": "AMM_CONSTANT_PRODUCT",
+      "fee_bps": 25,
+      "fee_ratio": 0.0025,
+      "gas_units_estimate": 155000,
+      "description": "High-throughput AMM pool with alternative liquidity curve",
+      "status": "CALIBRATED_SIMULATION"
+    },
+    "pyth_oracle": {
+      "id": "pyth_oracle",
+      "name": "Pyth Reference Oracle",
+      "type": "ORACLE_BENCHMARK",
+      "fee_bps": 0,
+      "fee_ratio": 0.0,
+      "gas_units_estimate": 0,
+      "description": "Zero-fee institutional reference feed for cross-venue fair price discovery",
+      "status": "BENCHMARK_FEED"
+    }
+  },
+  "default_pairs": [
+    {
+      "pair": "PHRS/USDC",
+      "base_token": "PHRS",
+      "quote_token": "USDC",
+      "pharos_swap": {
+        "reserve_base": 250000.0,
+        "reserve_quote": 625000.0,
+        "spot_price": 2.50
+      },
+      "lighthouse_dex": {
+        "reserve_base": 200000.0,
+        "reserve_quote": 512000.0,
+        "spot_price": 2.56
+      },
+      "oracle_price": 2.52
+    },
+    {
+      "pair": "WPHRS/USDT",
+      "base_token": "WPHRS",
+      "quote_token": "USDT",
+      "pharos_swap": {
+        "reserve_base": 85000.0,
+        "reserve_quote": 213350.0,
+        "spot_price": 2.51
+      },
+      "lighthouse_dex": {
+        "reserve_base": 110000.0,
+        "reserve_quote": 273900.0,
+        "spot_price": 2.49
+      },
+      "oracle_price": 2.50
+    },
+    {
+      "pair": "USDC/USDT",
+      "base_token": "USDC",
+      "quote_token": "USDT",
+      "pharos_swap": {
+        "reserve_base": 1500000.0,
+        "reserve_quote": 1500750.0,
+        "spot_price": 1.0005
+      },
+      "lighthouse_dex": {
+        "reserve_base": 1200000.0,
+        "reserve_quote": 1198800.0,
+        "spot_price": 0.9990
+      },
+      "oracle_price": 1.0000
+    }
+  ],
+  "market_scenarios": {
+    "profitable_arb": {
+      "name": "Wide Spread Opportunity (Profitable)",
+      "pair": "PHRS/USDC",
+      "buy_venue": "pharos_swap",
+      "buy_price": 2.50,
+      "sell_venue": "lighthouse_dex",
+      "sell_price": 2.56,
+      "gross_spread_pct": 2.40,
+      "expected_outcome": "ELIGIBLE_FOR_EXECUTION"
+    },
+    "slippage_eroded": {
+      "name": "High Slippage Erosion (Unprofitable)",
+      "pair": "PHRS/USDC",
+      "buy_venue": "pharos_swap",
+      "buy_price": 2.50,
+      "sell_venue": "lighthouse_dex",
+      "sell_price": 2.52,
+      "gross_spread_pct": 0.80,
+      "expected_outcome": "SKIPPED_UNPROFITABLE_AFTER_COSTS"
+    },
+    "gas_eroded": {
+      "name": "Micro-Spread Wiped by Gas",
+      "pair": "USDC/USDT",
+      "buy_venue": "lighthouse_dex",
+      "buy_price": 0.9990,
+      "sell_venue": "pharos_swap",
+      "sell_price": 1.0005,
+      "gross_spread_pct": 0.15,
+      "expected_outcome": "SKIPPED_BELOW_MIN_PROFIT_THRESHOLD"
+    },
+    "inverted_spread": {
+      "name": "Efficient Market (No Spread)",
+      "pair": "PHRS/USDC",
+      "buy_venue": "pharos_swap",
+      "buy_price": 2.55,
+      "sell_venue": "lighthouse_dex",
+      "sell_price": 2.50,
+      "gross_spread_pct": -1.96,
+      "expected_outcome": "SKIPPED_NEGATIVE_SPREAD"
+    }
+  }
+}

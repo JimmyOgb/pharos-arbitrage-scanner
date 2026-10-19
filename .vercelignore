@@ -1,0 +1,11 @@
+.git
+.github
+tests
+reports
+scanner
+scripts
+assets
+references
+pyproject.toml
+SKILL.md
+*.py

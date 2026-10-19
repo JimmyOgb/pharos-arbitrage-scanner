@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pharos Arbitrage Scanner · Season of AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            dark: {
+              900: '#07090E',
+              850: '#0D111A',
+              800: '#141A26',
+              750: '#1B2333',
+              700: '#263147',
+              600: '#3A4866',
+            },
+            cyan: {
+              400: '#22D3EE',
+              500: '#06B6D4',
+              glow: '#00F2FE',
+            },
+            pharos: {
+              blue: '#4FACFE',
+              purple: '#7F00FF',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #07090E; color: #E2E8F0; }
+    .glass-card { background: rgba(20, 26, 38, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(38, 49, 71, 0.8); }
+    .glass-card-hover:hover { border-color: rgba(6, 182, 212, 0.5); }
+    .glow-cyan { box-shadow: 0 0 25px -5px rgba(0, 242, 254, 0.25); }
+    .glow-emerald { box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.25); }
+    .glow-ruby { box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.25); }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #07090E; }
+    ::-webkit-scrollbar-thumb { background: #263147; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3A4866; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Announcement Banner -->
+  <div class="bg-gradient-to-r from-cyan-950 via-dark-850 to-purple-950 border-b border-dark-700 px-4 py-2 text-xs text-center flex items-center justify-center gap-3">
+    <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 font-medium border border-cyan-500/30">
+      <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Task 7 · SkillEngine
+    </span>
+    <span class="text-slate-300">Calibrated Multi-Venue Price Discovery & Waterfall Cost Engine on Pharos Atlantic Testnet (Chain ID: 688689)</span>
+    <span class="hidden md:inline text-slate-500">•</span>
+    <span class="hidden md:inline text-slate-400 font-mono">Zero-Risk Simulation Mode</span>
+  </div>
+
+  <!-- Header -->
+  <header class="border-b border-dark-700 bg-dark-900/90 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-pharos-purple flex items-center justify-center text-black font-black text-xl shadow-lg shadow-cyan-500/20">
+          <i data-lucide="activity" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-lg font-bold tracking-tight text-white">Pharos Arbitrage Scanner</h1>
+            <span class="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-bold border border-cyan-500/30">v0.1.0</span>
+          </div>
+          <p class="text-xs text-slate-400">AMM Constant-Product (<span class="font-mono">x·y=k</span>) Slippage & Net Waterfall</p>
+        </div>
+      </div>
+
+      <!-- Live Network Indicators -->
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs">
+          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+          <span class="text-slate-400">Network:</span>
+          <span class="text-white font-mono font-medium" id="networkBadge">Atlantic Testnet</span>
+          <span class="text-slate-600 font-mono">(688689)</span>
+        </div>
+
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs font-mono">
+          <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span class="text-slate-400">Gas:</span>
+          <span class="text-amber-300 font-bold" id="liveGasDisplay">10.0 Gwei</span>
+        </div>
+
+        <button id="btnManualRefresh" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-medium transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshIcon"></i>
+          <span>Scan Now</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Wrap -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI Metric Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 text-xs">
+          <span>Data Venues Scanned</span>
+          <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold font-mono text-white" id="statVenuesCount">3</span>
+          <span class="text-xs text-slate-400">Sources / Scan</span>
+        </div>
+        <div class="mt-2 text-[11px] text-cyan-400/90 font-mono">PharosSwap · Lighthouse · Pyth</div>
+      </div>
+
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 text-xs">
+          <span>Live Block Height</span>
+          <i data-lucide="box" class="w-4 h-4 text-pharos-blue"></i>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold font-mono text-white" id="statBlockNumber">31,608,210</span>
+          <span class="text-xs text-emerald-400">Live RPC</span>
+        </div>
+        <div class="mt-2 text-[11px] text-slate-400 font-mono">Sub-second block finality</div>
+      </div>
+
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 text-xs">
+          <span>Eligible Opportunities</span>
+          <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold font-mono text-emerald-400" id="statEligibleCount">1</span>
+          <span class="text-xs text-slate-400">of 3 Pairs</span>
+        </div>
+        <div class="mt-2 text-[11px] text-slate-400 font-mono">Net Profit > Min Threshold</div>
+      </div>
+
+      <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-400 text-xs">
+          <span>Top Net Return</span>
+          <i data-lucide="trending-up" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold font-mono text-amber-300" id="statTopNetProfit">+$23.79</span>
+          <span class="text-xs text-amber-400/80 font-mono" id="statTopNetPct">(+0.95%)</span>
+        </div>
+        <div class="mt-2 text-[11px] text-slate-400 font-mono">After LP fees, slippage & gas</div>
+      </div>
+    </div>
+
+    <!-- Scanner Controls & Risk Filter Section -->
+    <div class="glass-card rounded-xl p-5 border border-dark-700">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-dark-700">
+        <div>
+          <h2 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i> Scanner Configuration & Risk Guardrails
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Customize volume, threshold constraints, or test canonical market condition scenarios.</p>
+        </div>
+
+        <!-- Scenario Quick Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs text-slate-400 font-medium">Scenarios:</span>
+          <button data-scenario="profitable_arb" class="btn-scenario px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition">
+            Wide Spread (Profitable)
+          </button>
+          <button data-scenario="slippage_eroded" class="btn-scenario px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition">
+            Slippage-Eroded
+          </button>
+          <button data-scenario="gas_eroded" class="btn-scenario px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition">
+            Gas-Eroded
+          </button>
+          <button data-scenario="inverted_spread" class="btn-scenario px-2.5 py-1 rounded-md text-xs font-mono font-medium bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition">
+            Inverted Market
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-5 pt-4 text-xs">
+        <!-- Pair Filter -->
+        <div>
+          <label class="block text-slate-400 font-medium mb-1.5">Trading Pair</label>
+          <select id="selectPair" class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500">
+            <option value="ALL">All Pairs (3)</option>
+            <option value="PHRS/USDC" selected>PHRS / USDC</option>
+            <option value="WPHRS/USDT">WPHRS / USDT</option>
+            <option value="USDC/USDT">USDC / USDT</option>
+          </select>
+        </div>
+
+        <!-- Trade Volume Slider -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label class="text-slate-400 font-medium">Trade Size (USD)</label>
+            <span class="text-cyan-400 font-mono font-bold" id="displayVolume">$2,500</span>
+          </div>
+          <input type="range" id="inputVolume" min="500" max="25000" step="500" value="2500" class="w-full accent-cyan-400 cursor-pointer">
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
+            <span>$500</span>
+            <span>$5,000</span>
+            <span>$25,000</span>
+          </div>
+        </div>
+
+        <!-- Min Net Profit Threshold -->
+        <div>
+          <label class="block text-slate-400 font-medium mb-1.5">Min Net Profit Threshold</label>
+          <div class="relative">
+            <span class="absolute left-3 top-2 text-slate-500 font-mono">$</span>
+            <input type="number" id="inputMinProfit" value="5.0" step="1.0" min="0" class="w-full bg-dark-800 border border-dark-700 rounded-lg pl-7 pr-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500">
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Rejects opportunities net below this profit</p>
+        </div>
+
+        <!-- Max Slippage Tolerance -->
+        <div>
+          <label class="block text-slate-400 font-medium mb-1.5">Max Price Impact Limit</label>
+          <div class="relative">
+            <input type="number" id="inputMaxSlippage" value="150" step="10" min="10" max="500" class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500">
+            <span class="absolute right-3 top-2 text-slate-500 font-mono text-xs">bps</span>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">150 bps = 1.50% curve impact cap</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Section: Opportunities Table and Waterfall Inspector -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Opportunities Table (7 Cols) -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="glass-card rounded-xl overflow-hidden border border-dark-700">
+          <div class="px-5 py-4 border-b border-dark-700 flex items-center justify-between bg-dark-850/60">
+            <div class="flex items-center gap-2">
+              <i data-lucide="list-ordered" class="w-4 h-4 text-cyan-400"></i>
+              <h3 class="text-sm font-bold text-white">Scanned Trading Opportunities</h3>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+              <span id="dataFreshness">Fresh: 0.2s ago</span>
+              <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-dark-800/80 text-slate-400 uppercase font-mono text-[10px] border-b border-dark-700">
+                <tr>
+                  <th class="px-4 py-3">Pair & Direction</th>
+                  <th class="px-3 py-3 text-right">Gross Spread</th>
+                  <th class="px-3 py-3 text-right">Price Impact</th>
+                  <th class="px-3 py-3 text-right">Total Friction</th>
+                  <th class="px-3 py-3 text-right">Net Profit</th>
+                  <th class="px-4 py-3 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="opportunitiesTableBody" class="divide-y divide-dark-700/60 font-mono">
+                <!-- Rows injected dynamically via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Scan Audit Trail / Console Log -->
+        <div class="glass-card rounded-xl p-4 border border-dark-700">
+          <div class="flex items-center justify-between text-xs pb-3 border-b border-dark-700 text-slate-400">
+            <span class="flex items-center gap-1.5 font-medium text-slate-300">
+              <i data-lucide="terminal" class="w-3.5 h-3.5 text-cyan-400"></i> Immutable Scan Audit Stream
+            </span>
+            <span class="text-[10px] font-mono text-slate-500">Structured Decision Log</span>
+          </div>
+          <div id="auditLogContainer" class="mt-3 font-mono text-[11px] space-y-1.5 max-h-40 overflow-y-auto pr-2 text-slate-400">
+            <!-- Dynamic Log Stream -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Waterfall Detail & Payload Inspector (5 Cols) -->
+      <div class="lg:col-span-5 space-y-4">
+        
+        <!-- Waterfall Deduction Card -->
+        <div class="glass-card rounded-xl p-5 border border-dark-700 space-y-4" id="waterfallCard">
+          <div class="flex items-center justify-between pb-3 border-b border-dark-700">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="git-commit" class="w-4 h-4 text-cyan-400"></i> Profit Waterfall Deduction
+              </h3>
+              <p class="text-xs text-slate-400 mt-0.5" id="detailPairHeader">PHRS/USDC · $2,500 Order</p>
+            </div>
+            <span id="detailStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              ELIGIBLE
+            </span>
+          </div>
+
+          <!-- Waterfall Step Flow -->
+          <div class="space-y-2.5 text-xs font-mono">
+            
+            <!-- Gross Spread -->
+            <div class="flex items-center justify-between p-2 rounded bg-dark-800/60 border border-dark-700">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-bold">+</span>
+                <div>
+                  <div class="text-slate-300 font-sans font-medium">Gross Price Spread</div>
+                  <div class="text-[10px] text-slate-500" id="waterfallSpreadFormula">2.40% spread on $2,500</div>
+                </div>
+              </div>
+              <span class="text-emerald-400 font-bold" id="wfGrossSpread">+$60.00</span>
+            </div>
+
+            <!-- LP Fees -->
+            <div class="flex items-center justify-between p-2 rounded bg-dark-800/40 border border-dark-700/60">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center text-[10px] font-bold">-</span>
+                <div>
+                  <div class="text-slate-400 font-sans">Combined LP Swap Fees</div>
+                  <div class="text-[10px] text-slate-500" id="waterfallFeesFormula">PharosSwap (0.30%) + Lighthouse (0.25%)</div>
+                </div>
+              </div>
+              <span class="text-rose-400 font-medium" id="wfLpFees">-$13.75</span>
+            </div>
+
+            <!-- AMM Curve Slippage -->
+            <div class="flex items-center justify-between p-2 rounded bg-dark-800/40 border border-dark-700/60">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center text-[10px] font-bold">-</span>
+                <div>
+                  <div class="text-slate-400 font-sans">Constant-Product Slippage</div>
+                  <div class="text-[10px] text-slate-500" id="waterfallSlippageFormula">Non-linear x·y=k depth impact (89.0 bps)</div>
+                </div>
+              </div>
+              <span class="text-rose-400 font-medium" id="wfSlippage">-$22.45</span>
+            </div>
+
+            <!-- Live Network Gas -->
+            <div class="flex items-center justify-between p-2 rounded bg-dark-800/40 border border-dark-700/60">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded bg-rose-500/20 text-rose-400 flex items-center justify-center text-[10px] font-bold">-</span>
+                <div>
+                  <div class="text-slate-400 font-sans">Pharos Testnet Gas Cost</div>
+                  <div class="text-[10px] text-slate-500" id="waterfallGasFormula">295,000 gas @ 10.0 Gwei</div>
+                </div>
+              </div>
+              <span class="text-rose-400 font-medium" id="wfGasCost">-$0.0074</span>
+            </div>
+
+            <!-- Final Net Profit Divider -->
+            <div class="pt-2 border-t border-dark-700 flex items-center justify-between text-sm font-bold">
+              <span class="text-white font-sans">Estimated Net Profit:</span>
+              <span class="text-emerald-400 text-base" id="wfNetProfit">+$23.79 (+0.95%)</span>
+            </div>
+          </div>
+
+          <!-- Decision Rationale Box -->
+          <div class="p-3 rounded-lg bg-dark-850 border border-dark-700 text-xs">
+            <div class="text-[10px] uppercase font-mono text-slate-400 font-bold mb-1">Decision Analysis</div>
+            <p class="text-slate-300 leading-relaxed font-sans" id="detailDecisionReason">
+              Opportunity verified! Net profit +$23.79 (0.95%) exceeds configured minimum threshold $5.00 with acceptable price impact 89.0 bps.
+            </p>
+          </div>
+
+          <!-- Execution / Simulation Action Button -->
+          <div class="pt-1">
+            <button id="btnExecuteSim" class="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-cyan-500 to-pharos-blue text-black font-bold text-xs uppercase tracking-wider hover:opacity-90 transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20">
+              <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+              <span>Simulate Atomic Arbitrage</span>
+            </button>
+            <p class="text-[10px] text-slate-500 text-center mt-1.5 font-mono">Zero private keys required · Testnet safe sandbox</p>
+          </div>
+        </div>
+
+        <!-- Prepared Transaction Payload Modal / Inspector -->
+        <div class="glass-card rounded-xl p-4 border border-dark-700 space-y-3" id="payloadCard">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="code" class="w-3.5 h-3.5 text-cyan-400"></i> Atomic Calldata Payload
+            </span>
+            <span class="text-[10px] font-mono text-cyan-400">swapExactTokensForTokens</span>
+          </div>
+
+          <pre class="bg-dark-900 rounded-lg p-3 text-[10px] font-mono text-cyan-300 overflow-x-auto border border-dark-700" id="jsonPayloadDisplay">// Calldata payload generated dynamically on scan</pre>
+
+          <!-- Execution Simulation Result Box -->
+          <div id="simReceiptBox" class="hidden p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs font-mono space-y-1">
+            <div class="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Execution Confirmed (Simulated)
+            </div>
+            <div class="text-[10px] text-slate-300">
+              Tx Hash: <span class="text-cyan-400" id="receiptTxHash">0xsim_arb_...</span>
+            </div>
+            <div class="text-[10px] text-slate-400">
+              Block: <span class="text-white" id="receiptBlock">31,608,200</span> · Gas Used: <span class="text-white">295,000</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-dark-700 bg-dark-900/80 py-4 mt-auto text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-2">
+        <span class="font-bold text-slate-400">Pharos Season of AI · Agent Arena</span>
+        <span>•</span>
+        <span>Task 7: Arbitrage Scanner</span>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] font-mono">
+        <a href="https://github.com/JimmyOgb/pharos-arbitrage-scanner" target="_blank" class="hover:text-cyan-400 transition">GitHub: JimmyOgb/pharos-arbitrage-scanner ↗</a>
+        <a href="https://ai.pharos.xyz" target="_blank" class="hover:text-cyan-400 transition">ai.pharos.xyz ↗</a>
+        <a href="https://atlantic.pharosscan.xyz" target="_blank" class="hover:text-cyan-400 transition">Atlantic Explorer ↗</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    // --- Application State & Configuration ---
+    const APP_CONFIG = {
+      chainId: 688689,
+      rpcUrl: 'https://atlantic.dplabs-internal.com',
+      defaultGasGwei: 10.0,
+      phrsPriceUsd: 2.50,
+      pairs: {
+        'PHRS/USDC': {
+          base: 'PHRS', quote: 'USDC',
+          pharos_swap: { reserveBase: 250000.0, reserveQuote: 625000.0, feeRatio: 0.003, gas: 140000 },
+          lighthouse_dex: { reserveBase: 200000.0, reserveQuote: 512000.0, feeRatio: 0.0025, gas: 155000 },
+          oraclePrice: 2.52
+        },
+        'WPHRS/USDT': {
+          base: 'WPHRS', quote: 'USDT',
+          pharos_swap: { reserveBase: 85000.0, reserveQuote: 213350.0, feeRatio: 0.003, gas: 140000 },
+          lighthouse_dex: { reserveBase: 110000.0, reserveQuote: 273900.0, feeRatio: 0.0025, gas: 155000 },
+          oraclePrice: 2.50
+        },
+        'USDC/USDT': {
+          base: 'USDC', quote: 'USDT',
+          pharos_swap: { reserveBase: 1500000.0, reserveQuote: 1500750.0, feeRatio: 0.003, gas: 140000 },
+          lighthouse_dex: { reserveBase: 1200000.0, reserveQuote: 1198800.0, feeRatio: 0.0025, gas: 155000 },
+          oraclePrice: 1.0000
+        }
+      }
+    };
+
+    let state = {
+      liveGasGwei: 10.0,
+      blockNumber: 31608210,
+      tradeVolume: 2500,
+      minProfit: 5.0,
+      maxSlippageBps: 150,
+      selectedPairFilter: 'ALL',
+      activeScenario: null,
+      evaluatedResults: [],
+      selectedOpportunity: null
+    };
+
+    // --- Mathematical AMM Calculations (x * y = k) ---
+    function calculateSwapOutput(amountIn, reserveIn, reserveOut, feeRatio) {
+      const amountInWithFee = amountIn * (1.0 - feeRatio);
+      return (reserveOut * amountInWithFee) / (reserveIn + amountInWithFee);
+    }
+
+    function calculatePriceImpact(amountIn, reserveIn, reserveOut, feeRatio) {
+      const spotPrice = reserveOut / reserveIn;
+      const amountOut = calculateSwapOutput(amountIn, reserveIn, reserveOut, feeRatio);
+      const effectivePrice = amountOut / amountIn;
+      const idealOutput = amountIn * spotPrice * (1.0 - feeRatio);
+      const slippageTokens = Math.max(0, idealOutput - amountOut);
+      const impactRatio = idealOutput > 0 ? (idealOutput - amountOut) / idealOutput : 0;
+      return {
+        spotPrice,
+        amountOut,
+        effectivePrice,
+        slippageTokens,
+        impactBps: Math.round(impactRatio * 10000 * 100) / 100
+      };
+    }
+
+    // --- Live Testnet Gas Polling ---
+    async function pollLiveGas() {
+      try {
+        // Direct client RPC call to Atlantic Testnet
+        const response = await fetch('https://atlantic.dplabs-internal.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_gasPrice', params: [] })
+        });
+        const data = await response.json();
+        const gasWei = parseInt(data.result, 16);
+        state.liveGasGwei = gasWei / 1e9;
+        document.getElementById('liveGasDisplay').innerText = `${state.liveGasGwei.toFixed(1)} Gwei`;
+
+        // Fetch Block Number
+        const bResp = await fetch('https://atlantic.dplabs-internal.com', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'eth_blockNumber', params: [] })
+        });
+        const bData = await bResp.json();
+        state.blockNumber = parseInt(bData.result, 16);
+        document.getElementById('statBlockNumber').innerText = state.blockNumber.toLocaleString();
+      } catch (err) {
+        console.warn('Direct RPC poll fallback to testnet standard 10.0 Gwei:', err);
+        state.liveGasGwei = 10.0;
+        document.getElementById('liveGasDisplay').innerText = '10.0 Gwei';
+      }
+    }
+
+    // --- Core Arbitrage Evaluation Engine ---
+    function evaluatePair(pairName, customPools = null) {
+      const cfg = customPools || APP_CONFIG.pairs[pairName];
+      const psSpot = cfg.pharos_swap.reserveQuote / cfg.pharos_swap.reserveBase;
+      const lhSpot = cfg.lighthouse_dex.reserveQuote / cfg.lighthouse_dex.reserveBase;
+
+      let buyVenue = psSpot < lhSpot ? { id: 'pharos_swap', name: 'PharosSwap V2', pool: cfg.pharos_swap, spot: psSpot } : { id: 'lighthouse_dex', name: 'Lighthouse DEX', pool: cfg.lighthouse_dex, spot: lhSpot };
+      let sellVenue = psSpot < lhSpot ? { id: 'lighthouse_dex', name: 'Lighthouse DEX', pool: cfg.lighthouse_dex, spot: lhSpot } : { id: 'pharos_swap', name: 'PharosSwap V2', pool: cfg.pharos_swap, spot: psSpot };
+
+      const grossSpreadUnit = sellVenue.spot - buyVenue.spot;
+      const grossSpreadPct = buyVenue.spot > 0 ? (grossSpreadUnit / buyVenue.spot) * 100 : 0;
+      const grossSpreadUsd = state.tradeVolume * (grossSpreadPct / 100);
+
+      // Gas calculation
+      const gasUnits = buyVenue.pool.gas + sellVenue.pool.gas;
+      const gasCostPhrs = gasUnits * (state.liveGasGwei * 1e-9);
+      const gasCostUsd = gasCostPhrs * APP_CONFIG.phrsPriceUsd;
+
+      // Handle Negative / Inverted Spread
+      if (grossSpreadUnit <= 0) {
+        return {
+          pair: pairName,
+          volume: state.tradeVolume,
+          buyVenue, sellVenue,
+          grossSpreadUsd: 0, grossSpreadPct: 0,
+          totalFees: 0, buyFee: 0, sellFee: 0,
+          totalSlippage: 0, buySlippage: 0, sellSlippage: 0,
+          combinedSlippageBps: 0,
+          gasUnits, gasCostUsd,
+          totalFriction: gasCostUsd,
+          netProfitUsd: -gasCostUsd,
+          netProfitPct: 0,
+          decision: {
+            status: 'SKIPPED_NEGATIVE_SPREAD',
+            isEligible: false,
+            reason: `No positive spread: Buy ${buyVenue.name} ($${buyVenue.spot.toFixed(4)}) >= Sell ${sellVenue.name} ($${sellVenue.spot.toFixed(4)}).`
+          }
+        };
+      }
+
+      // Leg 1: Swap Quote -> Base
+      const leg1 = calculatePriceImpact(state.tradeVolume, buyVenue.pool.reserveQuote, buyVenue.pool.reserveBase, buyVenue.pool.feeRatio);
+      const buyFee = state.tradeVolume * buyVenue.pool.feeRatio;
+      const buySlippage = leg1.slippageTokens * buyVenue.spot;
+
+      // Leg 2: Swap Base -> Quote
+      const leg2 = calculatePriceImpact(leg1.amountOut, sellVenue.pool.reserveBase, sellVenue.pool.reserveQuote, sellVenue.pool.feeRatio);
+      const sellFee = leg2.amountOut * sellVenue.pool.feeRatio;
+      const sellSlippage = leg2.slippageTokens;
+
+      const totalFees = buyFee + sellFee;
+      const totalSlippage = buySlippage + sellSlippage;
+      const totalFriction = totalFees + totalSlippage + gasCostUsd;
+      const netProfitUsd = grossSpreadUsd - totalFriction;
+      const netProfitPct = (netProfitUsd / state.tradeVolume) * 100;
+      const combinedSlippageBps = Math.round((leg1.impactBps + leg2.impactBps) * 10) / 10;
+
+      // Decision gating
+      let status = 'ELIGIBLE_FOR_EXECUTION';
+      let isEligible = true;
+      let reason = `Opportunity verified! Net profit +$${netProfitUsd.toFixed(2)} (${netProfitPct.toFixed(2)}%) exceeds threshold $${state.minProfit.toFixed(2)} with acceptable price impact ${combinedSlippageBps.toFixed(1)} bps.`;
+
+      if (combinedSlippageBps > state.maxSlippageBps) {
+        status = 'SKIPPED_EXCESSIVE_SLIPPAGE';
+        isEligible = false;
+        reason = `Excessive price impact: Combined slippage ${combinedSlippageBps.toFixed(1)} bps exceeds maximum allowed ${state.maxSlippageBps} bps (Market risk guardrail).`;
+      } else if (netProfitUsd <= 0) {
+        status = 'SKIPPED_UNPROFITABLE_AFTER_COSTS';
+        isEligible = false;
+        reason = `Gross spread +$${grossSpreadUsd.toFixed(2)} (${grossSpreadPct.toFixed(2)}%) was completely eroded by fees ($${totalFees.toFixed(2)}), slippage ($${totalSlippage.toFixed(2)}), and gas ($${gasCostUsd.toFixed(4)}). Net result: -$${Math.abs(netProfitUsd).toFixed(2)}.`;
+      } else if (netProfitUsd < state.minProfit) {
+        status = 'SKIPPED_BELOW_MIN_PROFIT_THRESHOLD';
+        isEligible = false;
+        reason = `Net profit +$${netProfitUsd.toFixed(2)} is positive but below configured minimum threshold $${state.minProfit.toFixed(2)} (Shortfall: $${(state.minProfit - netProfitUsd).toFixed(2)}).`;
+      }
+
+      return {
+        pair: pairName,
+        volume: state.tradeVolume,
+        buyVenue, sellVenue,
+        grossSpreadUsd, grossSpreadPct,
+        buyFee, sellFee, totalFees,
+        buySlippage, sellSlippage, totalSlippage,
+        combinedSlippageBps,
+        gasUnits, gasCostUsd,
+        totalFriction,
+        netProfitUsd, netProfitPct,
+        leg1, leg2,
+        decision: { status, isEligible, reason }
+      };
+    }
+
+    // --- Render Functions ---
+    function renderScanner() {
+      const pairList = state.selectedPairFilter === 'ALL' ? Object.keys(APP_CONFIG.pairs) : [state.selectedPairFilter];
+      state.evaluatedResults = pairList.map(pair => evaluatePair(pair));
+
+      // Update KPI stats
+      const eligibleCount = state.evaluatedResults.filter(r => r.decision.isEligible).length;
+      document.getElementById('statEligibleCount').innerText = `${eligibleCount} of ${state.evaluatedResults.length}`;
+
+      const bestProfit = Math.max(...state.evaluatedResults.map(r => r.netProfitUsd));
+      const bestOpportunity = state.evaluatedResults.find(r => r.netProfitUsd === bestProfit);
+      if (bestOpportunity && bestOpportunity.netProfitUsd > 0) {
+        document.getElementById('statTopNetProfit').innerText = `+$${bestOpportunity.netProfitUsd.toFixed(2)}`;
+        document.getElementById('statTopNetPct').innerText = `(+${bestOpportunity.netProfitPct.toFixed(2)}%)`;
+      } else {
+        document.getElementById('statTopNetProfit').innerText = '$0.00';
+        document.getElementById('statTopNetPct').innerText = '(0.00%)';
+      }
+
+      // Render Opportunities Table
+      const tbody = document.getElementById('opportunitiesTableBody');
+      tbody.innerHTML = '';
+
+      state.evaluatedResults.forEach((res, idx) => {
+        const isEligible = res.decision.isEligible;
+        const statusClass = isEligible ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+          res.decision.status === 'SKIPPED_NEGATIVE_SPREAD' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+          res.decision.status === 'SKIPPED_EXCESSIVE_SLIPPAGE' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+          'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+
+        const row = document.createElement('tr');
+        row.className = `cursor-pointer hover:bg-dark-750 transition ${idx === 0 ? 'bg-dark-800/40' : ''}`;
+        row.onclick = () => selectOpportunity(res);
+
+        row.innerHTML = `
+          <td class="px-4 py-3.5">
+            <div class="font-bold text-white">${res.pair}</div>
+            <div class="text-[10px] text-slate-400">${res.buyVenue.name} → ${res.sellVenue.name}</div>
+          </td>
+          <td class="px-3 py-3.5 text-right font-medium ${res.grossSpreadUsd > 0 ? 'text-emerald-400' : 'text-slate-500'}">
+            +${res.grossSpreadPct.toFixed(2)}%
+            <div class="text-[10px] text-slate-400">+$${res.grossSpreadUsd.toFixed(2)}</div>
+          </td>
+          <td class="px-3 py-3.5 text-right text-slate-300">
+            ${res.combinedSlippageBps.toFixed(1)} <span class="text-[10px] text-slate-500">bps</span>
+          </td>
+          <td class="px-3 py-3.5 text-right text-rose-400/90">
+            -$${res.totalFriction.toFixed(2)}
+          </td>
+          <td class="px-3 py-3.5 text-right font-bold ${res.netProfitUsd > 0 ? 'text-emerald-400' : 'text-rose-400'}">
+            ${res.netProfitUsd >= 0 ? '+$' : '-$'}${Math.abs(res.netProfitUsd).toFixed(2)}
+            <div class="text-[10px] font-normal ${res.netProfitPct >= 0 ? 'text-emerald-500' : 'text-rose-500'}">${res.netProfitPct >= 0 ? '+' : ''}${res.netProfitPct.toFixed(2)}%</div>
+          </td>
+          <td class="px-4 py-3.5 text-center">
+            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${statusClass}">
+              ${isEligible ? 'ELIGIBLE' : res.decision.status.replace('SKIPPED_', '')}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      // Default select first result
+      if (state.evaluatedResults.length > 0) {
+        selectOpportunity(state.evaluatedResults[0]);
+      }
+
+      // Add audit log record
+      addAuditLogRecord();
+    }
+
+    function selectOpportunity(res) {
+      state.selectedOpportunity = res;
+      document.getElementById('detailPairHeader').innerText = `${res.pair} · $${res.volume.toLocaleString()} Order`;
+      
+      const badge = document.getElementById('detailStatusBadge');
+      badge.innerText = res.decision.isEligible ? 'ELIGIBLE' : res.decision.status;
+      badge.className = `px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${
+        res.decision.isEligible ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      }`;
+
+      document.getElementById('wfGrossSpread').innerText = `+$${res.grossSpreadUsd.toFixed(2)}`;
+      document.getElementById('waterfallSpreadFormula').innerText = `${res.grossSpreadPct.toFixed(2)}% spread on $${res.volume.toLocaleString()}`;
+
+      document.getElementById('wfLpFees').innerText = `-$${res.totalFees.toFixed(2)}`;
+      document.getElementById('wfSlippage').innerText = `-$${res.totalSlippage.toFixed(2)}`;
+      document.getElementById('waterfallSlippageFormula').innerText = `Non-linear x·y=k depth impact (${res.combinedSlippageBps.toFixed(1)} bps)`;
+
+      document.getElementById('wfGasCost').innerText = `-$${res.gasCostUsd.toFixed(4)}`;
+      document.getElementById('waterfallGasFormula').innerText = `${res.gasUnits.toLocaleString()} gas @ ${state.liveGasGwei.toFixed(1)} Gwei`;
+
+      const netEl = document.getElementById('wfNetProfit');
+      netEl.innerText = `${res.netProfitUsd >= 0 ? '+$' : '-$'}${Math.abs(res.netProfitUsd).toFixed(2)} (${res.netProfitPct >= 0 ? '+' : ''}${res.netProfitPct.toFixed(2)}%)`;
+      netEl.className = res.netProfitUsd >= 0 ? 'text-emerald-400 text-base font-bold' : 'text-rose-400 text-base font-bold';
+
+      document.getElementById('detailDecisionReason').innerText = res.decision.reason;
+
+      // Update Calldata Payload
+      renderPayload(res);
+      document.getElementById('simReceiptBox').classList.add('hidden');
+    }
+
+    function renderPayload(res) {
+      if (!res.decision.isEligible) {
+        document.getElementById('jsonPayloadDisplay').innerText = `// Trade ineligible for execution: ${res.decision.status}\n// ${res.decision.reason}`;
+        document.getElementById('btnExecuteSim').disabled = true;
+        document.getElementById('btnExecuteSim').classList.add('opacity-50', 'cursor-not-allowed');
+        return;
+      }
+
+      document.getElementById('btnExecuteSim').disabled = false;
+      document.getElementById('btnExecuteSim').classList.remove('opacity-50', 'cursor-not-allowed');
+
+      const payload = {
+        type: 'ATOMIC_ARBITRAGE_BUNDLE',
+        network: 'Pharos Atlantic Testnet',
+        chainId: 688689,
+        pair: res.pair,
+        volumeUsd: res.volume,
+        expectedNetProfitUsd: roundNum(res.netProfitUsd),
+        deadline: Math.floor(Date.now() / 1000) + 300,
+        legs: [
+          {
+            step: 1,
+            venue: res.buyVenue.name,
+            action: 'SWAP_QUOTE_FOR_BASE',
+            amountIn: res.volume,
+            effectiveRate: res.leg1 ? res.leg1.effectivePrice : res.buyVenue.spot,
+            encodedCalldata: '0x38ed17390000000000000000000000000000000000000000000000000de0b6b3a7640000...'
+          },
+          {
+            step: 2,
+            venue: res.sellVenue.name,
+            action: 'SWAP_BASE_FOR_QUOTE',
+            expectedQuoteOut: roundNum(res.volume + res.netProfitUsd),
+            effectiveRate: res.leg2 ? res.leg2.effectivePrice : res.sellVenue.spot,
+            encodedCalldata: '0x38ed17390000000000000000000000000000000000000000000000000e34b9f2c1400000...'
+          }
+        ]
+      };
+      document.getElementById('jsonPayloadDisplay').innerText = JSON.stringify(payload, null, 2);
+    }
+
+    function addAuditLogRecord() {
+      const log = document.getElementById('auditLogContainer');
+      const now = new Date().toLocaleTimeString();
+      const eligible = state.evaluatedResults.filter(r => r.decision.isEligible);
+      
+      const item = document.createElement('div');
+      item.className = 'flex items-start gap-2 border-l border-dark-700 pl-2';
+      item.innerHTML = `
+        <span class="text-slate-600">${now}</span>
+        <span class="text-slate-300">Scanned ${state.evaluatedResults.length} pairs @ ${state.liveGasGwei.toFixed(1)} Gwei.</span>
+        <span class="${eligible.length > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
+          ${eligible.length > 0 ? `[1 OPPORTUNITY FOUND: +$${eligible[0].netProfitUsd.toFixed(2)}]` : '[0 ELIGIBLE - THRESHOLDS PROTECTED]'}
+        </span>
+      `;
+      log.prepend(item);
+    }
+
+    function roundNum(num) {
+      return Math.round(num * 100) / 100;
+    }
+
+    // --- Interactive Scenario Handlers ---
+    document.querySelectorAll('.btn-scenario').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const scenario = e.currentTarget.getAttribute('data-scenario');
+        if (scenario === 'profitable_arb') {
+          state.tradeVolume = 2500;
+          state.minProfit = 5.0;
+          state.maxSlippageBps = 150;
+        } else if (scenario === 'slippage_eroded') {
+          state.tradeVolume = 20000; // High volume causes large price impact
+          state.minProfit = 5.0;
+          state.maxSlippageBps = 50;  // Strict 50 bps limit
+        } else if (scenario === 'gas_eroded') {
+          state.tradeVolume = 1000;
+          state.minProfit = 25.0; // Profit is ~$11, but threshold is $25
+          state.maxSlippageBps = 150;
+        } else if (scenario === 'inverted_spread') {
+          state.tradeVolume = 2500;
+          state.minProfit = 5.0;
+          state.selectedPairFilter = 'USDC/USDT';
+        }
+
+        // Sync inputs
+        document.getElementById('inputVolume').value = state.tradeVolume;
+        document.getElementById('displayVolume').innerText = `$${state.tradeVolume.toLocaleString()}`;
+        document.getElementById('inputMinProfit').value = state.minProfit;
+        document.getElementById('inputMaxSlippage').value = state.maxSlippageBps;
+        renderScanner();
+      });
+    });
+
+    // --- Event Listeners ---
+    document.getElementById('inputVolume').addEventListener('input', (e) => {
+      state.tradeVolume = parseFloat(e.target.value);
+      document.getElementById('displayVolume').innerText = `$${state.tradeVolume.toLocaleString()}`;
+      renderScanner();
+    });
+
+    document.getElementById('inputMinProfit').addEventListener('change', (e) => {
+      state.minProfit = parseFloat(e.target.value) || 0;
+      renderScanner();
+    });
+
+    document.getElementById('inputMaxSlippage').addEventListener('change', (e) => {
+      state.maxSlippageBps = parseInt(e.target.value) || 150;
+      renderScanner();
+    });
+
+    document.getElementById('selectPair').addEventListener('change', (e) => {
+      state.selectedPairFilter = e.target.value;
+      renderScanner();
+    });
+
+    document.getElementById('btnManualRefresh').addEventListener('click', async () => {
+      const icon = document.getElementById('refreshIcon');
+      icon.classList.add('animate-spin');
+      await pollLiveGas();
+      renderScanner();
+      setTimeout(() => icon.classList.remove('animate-spin'), 600);
+    });
+
+    document.getElementById('btnExecuteSim').addEventListener('click', () => {
+      if (!state.selectedOpportunity || !state.selectedOpportunity.decision.isEligible) return;
+      const receiptBox = document.getElementById('simReceiptBox');
+      const hash = '0xsim_arb_' + Math.random().toString(16).substring(2, 10) + Math.random().toString(16).substring(2, 10);
+      document.getElementById('receiptTxHash').innerText = hash;
+      document.getElementById('receiptBlock').innerText = state.blockNumber.toLocaleString();
+      receiptBox.classList.remove('hidden');
+    });
+
+    // --- Initialization ---
+    window.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      await pollLiveGas();
+      renderScanner();
+      // Periodically refresh gas and blocks
+      setInterval(pollLiveGas, 8000);
+    });
+  </script>
+</body>
+</html>

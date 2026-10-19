@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pharos-arbitrage-scanner"
+version = "0.1.0"
+description = "Multi-venue arbitrage opportunity scanner, constant-product AMM slippage calculator, and threshold-gated execution engine on Pharos Network."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "JimmyOgb" }
+]
+keywords = ["pharos", "arbitrage", "defi", "amm", "slippage", "agent-arena", "skill-engine"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+[project.scripts]
+pharos-scanner = "scanner.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+markers = [
+    "unit: Pure offline unit tests (zero network)",
+    "integration: Integration tests",
+    "live: Live Pharos Atlantic testnet RPC integration tests (skipped if offline)"
+]
