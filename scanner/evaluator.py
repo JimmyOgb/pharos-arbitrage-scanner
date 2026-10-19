@@ -1,7 +1,8 @@
 """
 Arbitrage Opportunity Evaluator & Decision Gating Engine
 Executes dual-venue analysis, constant-product slippage calculation,
-and waterfall cost netting. Enforces fail-closed safety when live liquidity is missing.
+and waterfall cost netting. Enforces strict fail-closed safety.
+Live Status: 'Live arbitrage unavailable — no verified liquidity'
 """
 
 from typing import Dict, Any, Optional
@@ -22,11 +23,15 @@ def evaluate_arbitrage(
     """
     Evaluates multi-venue arbitrage for a given pair and trade volume.
     
-    Modes:
-    1. Live On-Chain Audit: Queries verified on-chain Chainlink push feeds and Atlantic AMM bytecode.
-       Fails closed if live AMM liquidity is not deployed or feed is unreachable.
-    2. Mathematical Model Isolation: Evaluates x·y=k, fee deductions, and waterfall netting
-       against explicit test fixtures.
+    Truthfulness Enforcement:
+    1. Production Live Audit: Chainlink push feeds on Pharos RPC (Chain 1672) provide
+       reference benchmark prices, NOT executable AMM pool quotes.
+       Atlantic Testnet (Chain 688689) currently has 0 verified AMM pool bytecodes.
+       Therefore, live production status is strictly:
+       "Live arbitrage unavailable — no verified liquidity" (is_eligible: False).
+    2. Unit Test Math Harness: Evaluates constant-product formulas (x·y=k), fees,
+       and waterfall netting strictly in unit tests with 'TEST_FIXTURE' status tags.
+       Never emits 'ELIGIBLE_FOR_EXECUTION'.
     """
     if trade_volume_usd <= 0:
         raise ValueError(f"trade_volume_usd must be positive, got {trade_volume_usd}")
@@ -41,62 +46,64 @@ def evaluate_arbitrage(
 
     venues_snapshot = scan_pair_venues(pair_name, custom_reserves)
 
-    # Mode 1: Live On-Chain Evaluation
+    # Mode 1: Production Live Evaluation
     if not venues_snapshot.get("is_test_fixture", False):
-        chainlink_venue = venues_snapshot["venues"]["chainlink_push_engine"]
-        amm_venue = venues_snapshot["venues"]["atlantic_amm"]
-        spot_price = chainlink_venue.get("spot_price")
+        chainlink_venue = venues_snapshot["venues"]["chainlink_reference_oracle"]
+        amm_venue = venues_snapshot["venues"]["atlantic_amm_router"]
+        spot_price = chainlink_venue.get("reference_price_usd")
 
-        # If live on-chain feed was unreachable
+        # Check oracle availability
         if not chainlink_venue.get("is_available", False) or spot_price is None:
             return {
                 "timestamp": venues_snapshot["timestamp"],
                 "pair": pair_name,
-                "data_mode": "VERIFIED_ON_CHAIN",
+                "data_mode": "PRODUCTION_LIVE_AUDIT",
                 "trade_volume_usd": trade_volume_usd,
                 "min_net_profit_usd": min_net_profit_usd,
                 "max_slippage_bps": max_slippage_bps,
-                "verified_feed_price": None,
-                "chainlink_details": chainlink_venue,
-                "amm_details": amm_venue,
+                "reference_oracle_price": None,
+                "oracle_venue": chainlink_venue,
+                "amm_venue": amm_venue,
                 "gas_details": live_gas_info,
                 "waterfall": None,
                 "decision": {
-                    "status": "SKIPPED_SOURCE_UNAVAILABLE",
+                    "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
                     "is_eligible": False,
-                    "reason": f"Real on-chain price feed for {pair_name} from Pharos RPC is unreachable ({chainlink_venue.get('error')}). Fail-closed: Zero simulated data substituted."
+                    "reason": f"Live arbitrage unavailable — no verified liquidity. Reference oracle from Pharos RPC (Chain 1672) is unreachable ({chainlink_venue.get('error')}) and Atlantic Testnet (Chain 688689) has no deployed AMM liquidity pools."
                 }
             }
 
         return {
             "timestamp": venues_snapshot["timestamp"],
             "pair": pair_name,
-            "data_mode": "VERIFIED_ON_CHAIN",
+            "data_mode": "PRODUCTION_LIVE_AUDIT",
             "trade_volume_usd": trade_volume_usd,
             "min_net_profit_usd": min_net_profit_usd,
             "max_slippage_bps": max_slippage_bps,
-            "verified_feed_price": spot_price,
-            "chainlink_details": chainlink_venue,
-            "amm_details": amm_venue,
+            "reference_oracle_price": spot_price,
+            "oracle_venue": chainlink_venue,
+            "amm_venue": amm_venue,
             "gas_details": live_gas_info,
             "waterfall": None,
             "decision": {
-                "status": "SKIPPED_UNAVAILABLE_LIQUIDITY",
+                "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
                 "is_eligible": False,
                 "reason": (
-                    f"Verified on-chain price is ${spot_price:,.2f} via Chainlink Feeds Cache on Pharos. "
-                    f"However, Atlantic Testnet AMM pool contains no deployed bytecode (0x). "
-                    f"Fail-closed: Zero simulated reserves or fabricated spreads substituted."
+                    f"Live arbitrage unavailable — no verified liquidity. "
+                    f"Verified Chainlink reference price is ${spot_price:,.2f} on Pharos RPC (Chain ID 1672). "
+                    f"However, reference oracles are non-executable benchmark feeds, and Pharos Atlantic Testnet (Chain ID 688689) "
+                    f"currently has 0 deployed AMM liquidity pools or router contracts (0x bytecode). "
+                    f"Two independent executable venue quotes are required for real arbitrage."
                 )
             }
         }
 
-    # Mode 2: Mathematical Test Fixture Evaluation
+    # Mode 2: Isolated Mathematical Unit Test Harness
     venues = venues_snapshot["venues"]
-    va = venues["venue_a"]
-    vb = venues["venue_b"]
+    va = venues["test_venue_a"]
+    vb = venues["test_venue_b"]
 
-    # Directional Flow (Buy Low, Sell High)
+    # Directional Flow for Test Math
     if va["spot_price"] < vb["spot_price"]:
         buy_venue = va
         sell_venue = vb
@@ -113,7 +120,7 @@ def evaluate_arbitrage(
     gas_gwei = live_gas_info.get("gas_price_gwei") if live_gas_info.get("gas_price_gwei") is not None else 10.0
     gas_cost_data = calculate_gas_cost_usd(gas_units_total, gas_gwei)
 
-    # Inverted / Negative Spread Gate
+    # Inverted / Negative Spread Gate in Math Test
     if gross_spread_per_unit <= 0:
         waterfall = compute_net_waterfall(
             trade_volume_usd=trade_volume_usd,
@@ -129,7 +136,7 @@ def evaluate_arbitrage(
         return {
             "timestamp": venues_snapshot["timestamp"],
             "pair": pair_name,
-            "data_mode": "TEST_FIXTURE_ISOLATION",
+            "data_mode": "ISOLATED_TEST_FIXTURE",
             "trade_volume_usd": trade_volume_usd,
             "min_net_profit_usd": min_net_profit_usd,
             "max_slippage_bps": max_slippage_bps,
@@ -138,9 +145,10 @@ def evaluate_arbitrage(
             "waterfall": waterfall,
             "gas_details": live_gas_info,
             "decision": {
-                "status": "SKIPPED_NEGATIVE_SPREAD",
+                "status": "TEST_FIXTURE_NEGATIVE_SPREAD",
                 "is_eligible": False,
-                "reason": f"No positive spread: Buy {buy_venue['name']} (${buy_spot:.4f}) >= Sell {sell_venue['name']} (${sell_spot:.4f})."
+                "fixture_threshold_passed": False,
+                "reason": f"[TEST FIXTURE] Negative or zero spread: Buy {buy_venue['name']} (${buy_spot:.4f}) >= Sell {sell_venue['name']} (${sell_spot:.4f})."
             }
         }
 
@@ -184,39 +192,39 @@ def evaluate_arbitrage(
     net_profit = waterfall["net_profit_usd"]
 
     if combined_slippage_bps > max_slippage_bps:
-        status = "SKIPPED_EXCESSIVE_SLIPPAGE"
-        is_eligible = False
+        status = "TEST_FIXTURE_EXCESSIVE_SLIPPAGE"
+        fixture_passed = False
         reason = (
-            f"Excessive price impact: Combined slippage {combined_slippage_bps:.1f} bps "
-            f"exceeds maximum allowed {max_slippage_bps} bps (Market risk guardrail)."
+            f"[TEST FIXTURE] Excessive price impact: Combined slippage {combined_slippage_bps:.1f} bps "
+            f"exceeds maximum allowed {max_slippage_bps} bps."
         )
     elif net_profit <= 0:
-        status = "SKIPPED_UNPROFITABLE_AFTER_COSTS"
-        is_eligible = False
+        status = "TEST_FIXTURE_UNPROFITABLE_AFTER_COSTS"
+        fixture_passed = False
         reason = (
-            f"Gross spread +${gross_spread_usd:.2f} ({gross_spread_pct:.2f}%) was completely eroded by "
+            f"[TEST FIXTURE] Gross spread +${gross_spread_usd:.2f} was eroded by "
             f"fees (${waterfall['total_fees_usd']:.2f}), slippage (${waterfall['total_slippage_usd']:.2f}), "
-            f"and gas (${waterfall['gas_cost_usd']:.4f}). Net result: -${abs(net_profit):.2f}."
+            f"and gas (${waterfall['gas_cost_usd']:.4f}). Net: -${abs(net_profit):.2f}."
         )
     elif net_profit < min_net_profit_usd:
-        status = "SKIPPED_BELOW_MIN_PROFIT_THRESHOLD"
-        is_eligible = False
+        status = "TEST_FIXTURE_BELOW_MIN_PROFIT_THRESHOLD"
+        fixture_passed = False
         reason = (
-            f"Net profit +${net_profit:.2f} is positive but below configured minimum threshold "
+            f"[TEST FIXTURE] Net profit +${net_profit:.2f} is positive but below threshold "
             f"${min_net_profit_usd:.2f} (Shortfall: ${min_net_profit_usd - net_profit:.2f})."
         )
     else:
-        status = "ELIGIBLE_FOR_EXECUTION"
-        is_eligible = True
+        status = "TEST_FIXTURE_THRESHOLD_MET"
+        fixture_passed = True
         reason = (
-            f"Opportunity verified! Net profit +${net_profit:.2f} ({waterfall['net_profit_pct']:.2f}%) "
-            f"exceeds threshold ${min_net_profit_usd:.2f} with acceptable price impact {combined_slippage_bps:.1f} bps."
+            f"[TEST FIXTURE] Mathematical model validated. Synthetic profit +${net_profit:.2f} ({waterfall['net_profit_pct']:.2f}%) "
+            f"exceeds threshold ${min_net_profit_usd:.2f} with slippage {combined_slippage_bps:.1f} bps."
         )
 
     return {
         "timestamp": venues_snapshot["timestamp"],
         "pair": pair_name,
-        "data_mode": "TEST_FIXTURE_ISOLATION",
+        "data_mode": "ISOLATED_TEST_FIXTURE",
         "trade_volume_usd": trade_volume_usd,
         "min_net_profit_usd": min_net_profit_usd,
         "max_slippage_bps": max_slippage_bps,
@@ -241,7 +249,8 @@ def evaluate_arbitrage(
         "gas_details": live_gas_info,
         "decision": {
             "status": status,
-            "is_eligible": is_eligible,
+            "is_eligible": False,  # Execution is strictly disabled in production
+            "fixture_threshold_passed": fixture_passed,
             "reason": reason
         }
     }

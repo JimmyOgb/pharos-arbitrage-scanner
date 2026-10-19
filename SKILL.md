@@ -50,8 +50,8 @@ A high-performance SkillEngine capability that queries real on-chain token price
 Before any opportunity is marked as eligible:
 1. **Network Guardrail**: Verifies network matches Atlantic Testnet (`688689`) or Pharos RPC (`1672`).
 2. **Zero-Key Boundary**: Never requires or requests wallet private keys or mnemonics.
-3. **Bytecode Verification**: Verifies on-chain AMM contract bytecode. Fails closed with `SKIPPED_UNAVAILABLE_LIQUIDITY` if bytecode is `0x`.
-4. **Transparent Rejection Reasons**: Every scan logs exact mathematical shortfall (`SKIPPED_UNAVAILABLE_LIQUIDITY`, `SKIPPED_BELOW_MIN_PROFIT_THRESHOLD`, `SKIPPED_UNPROFITABLE_AFTER_COSTS`, `SKIPPED_EXCESSIVE_SLIPPAGE`, `SKIPPED_NEGATIVE_SPREAD`).
+3. **Bytecode Verification**: Verifies on-chain AMM contract bytecode. Fails closed with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY` if bytecode is `0x`.
+4. **Transparent Rejection Reasons**: Every scan logs exact status (`LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`). Unit tests validate friction shortfalls (`TEST_FIXTURE_THRESHOLD_MET`, `TEST_FIXTURE_EXCESSIVE_SLIPPAGE`, `TEST_FIXTURE_UNPROFITABLE`).
 
 ---
 

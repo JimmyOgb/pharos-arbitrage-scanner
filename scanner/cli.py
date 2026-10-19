@@ -1,6 +1,6 @@
 """
 Pharos Arbitrage Scanner Production CLI
-100% Real On-Chain Verified Market Data & Fail-Closed AMM Audit Engine.
+Truthful On-Chain Feed Audit & Fail-Closed AMM Verification Engine.
 """
 
 import argparse
@@ -18,8 +18,8 @@ def print_banner():
     banner = """
 ========================================================================
   PHAROS ARBITRAGE SCANNER | SKILLENGINE v0.2.0
-  Network: Pharos Atlantic Testnet (688689) & Pharos RPC (1672)
-  100% Real On-Chain Verified Market Data & Fail-Closed Safety Engine
+  Network Audit: Pharos RPC (1672) & Pharos Atlantic Testnet (688689)
+  Status: Live Arbitrage Unavailable -- No Verified Liquidity
 ========================================================================
 """
     print(banner)
@@ -31,7 +31,7 @@ def cmd_live_gas(args):
         print(json.dumps(gas_info, indent=2))
         return
 
-    print("Fetching live network gas directly from Pharos Atlantic Testnet...")
+    print("Fetching live network gas directly from Pharos Atlantic Testnet (Chain ID 688689)...")
     print("\n--- Live Testnet Gas Status ---")
     print(f"  RPC Endpoint : {gas_info['rpc_url']}")
     print(f"  Status       : {gas_info.get('status', 'UNKNOWN')}")
@@ -45,28 +45,29 @@ def cmd_live_gas(args):
 
 def format_live_audit_summary(eval_res: Dict[str, Any]) -> str:
     pair = eval_res["pair"]
-    spot = eval_res.get("verified_feed_price")
-    cl = eval_res.get("chainlink_details", {})
-    amm = eval_res.get("amm_details", {})
+    spot = eval_res.get("reference_oracle_price")
+    oracle = eval_res.get("oracle_venue", {})
+    amm = eval_res.get("amm_venue", {})
     dec = eval_res["decision"]
     gas = eval_res.get("gas_details", {})
 
-    status_icon = "[FAIL-CLOSED: LIQUIDITY UNAVAILABLE]"
+    status_icon = "[LIVE ARBITRAGE UNAVAILABLE - NO VERIFIED LIQUIDITY]"
 
     out = []
     out.append(f"\n=======================================================")
     out.append(f"Pair: {pair} | Mode: {eval_res.get('data_mode')} | Status: {status_icon}")
     out.append(f"=======================================================")
-    out.append(f"  Verified On-Chain Price : ${spot:,.2f} USD")
-    out.append(f"  Oracle Source           : {cl.get('name')} (Chain ID {cl.get('chain_id')})")
-    out.append(f"  Oracle Cache Address    : {cl.get('contract_address')}")
-    if cl.get("proxy_address"):
-        out.append(f"  Aggregator Proxy        : {cl.get('proxy_address')} (Verified: {cl.get('proxy_verified')})")
-    out.append(f"  Last Feed Update        : {cl.get('updated_at_iso')} (Epoch: {cl.get('updated_at_epoch')})")
-    out.append(f"  Atlantic Gas Price      : {gas.get('gas_price_gwei')} Gwei (Block #{gas.get('block_number')})")
-    out.append(f"  AMM Pool Deployment     : {amm.get('status')} (Router: {amm.get('router_address')})")
+    out.append(f"  Reference Oracle Price  : ${spot:,.2f} USD (Non-executable benchmark)")
+    out.append(f"  Oracle Source           : {oracle.get('name')} | {oracle.get('network_name')}")
+    out.append(f"  Oracle Cache Address    : {oracle.get('contract_address')}")
+    if oracle.get("proxy_address"):
+        out.append(f"  Aggregator Proxy        : {oracle.get('proxy_address')} (Verified: {oracle.get('proxy_verified')})")
+    out.append(f"  Last Feed Update        : {oracle.get('updated_at_iso')} (Epoch: {oracle.get('updated_at_epoch')})")
+    out.append(f"  Atlantic Gas Price      : {gas.get('gas_price_gwei')} Gwei | Block #{gas.get('block_number')}")
+    out.append(f"  Atlantic Network        : {amm.get('network_name')}")
+    out.append(f"  AMM Deployed Pools      : {amm.get('deployed_pools_count')} pools ({amm.get('status')})")
     out.append(f"  Decision Gate           : {dec['status']}")
-    out.append(f"  Reason                  : {dec['reason']}")
+    out.append(f"  Truthfulness Notice     : {dec['reason']}")
     out.append(f"=======================================================\n")
     return "\n".join(out)
 
@@ -101,27 +102,28 @@ def cmd_scan(args):
 
 def cmd_demo(args):
     """
-    Executes the official 4-part live audit & mathematical model verification suite:
-    Part 1: Live Chainlink push feed query across BTC/USD, ETH/USD, PROS/USD on Pharos
-    Part 2: Live Atlantic Testnet gas price & block height query
-    Part 3: On-chain AMM router bytecode verification (proof of fail-closed handling)
-    Part 4: Mathematical model validation (x·y=k & waterfall) on isolated test fixtures
+    Executes the official 4-part live truthfulness audit & mathematical verification suite:
+    Part 1: Live Chainlink reference push feed query (Pharos RPC, Chain ID: 1672)
+    Part 2: Live Atlantic Testnet gas price & block height query (Chain ID: 688689)
+    Part 3: On-chain AMM router bytecode audit (Proof that 0 AMM pools are deployed on Atlantic)
+    Part 4: Mathematical unit test suite verifying constant-product mechanics (x·y=k) on test fixtures
     """
     if not args.json:
         print_banner()
-        print("RUNNING OFFICIAL LIVE AUDIT & MATHEMATICAL VERIFICATION SUITE\n")
-        print(">>> PART 1: QUERYING REAL ON-CHAIN CHAINLINK FEEDS (PHAROS RPC)...")
+        print("RUNNING OFFICIAL LIVE TRUTHFULNESS AUDIT & MATHEMATICAL VERIFICATION SUITE\n")
+        print(">>> PART 1: QUERYING VERIFIED CHAINLINK REFERENCE FEEDS (PHAROS RPC, CHAIN ID 1672)...")
+        print("    [Notice] Reference oracles provide benchmark prices, NOT executable AMM trade quotes.")
 
     feeds_report = {}
     for pair in ["BTC/USD", "ETH/USD", "PROS/USD"]:
         data = query_chainlink_feed(pair)
         feeds_report[pair] = data
         if not args.json:
-            price_str = f"${data['price_usd']:>12,.2f} USD" if data.get('price_usd') is not None else "UNAVAILABLE"
+            price_str = f"${data['reference_price_usd']:>12,.2f} USD" if data.get('reference_price_usd') is not None else "UNAVAILABLE"
             print(f"  [+] {pair:8s} : {price_str} | Updated: {data.get('updated_at_iso')} | Cache: {data.get('cache_address')}")
 
     if not args.json:
-        print("\n>>> PART 2: QUERYING ATLANTIC TESTNET NETWORK STATE...")
+        print("\n>>> PART 2: QUERYING PHAROS ATLANTIC TESTNET (CHAIN ID 688689)...")
     gas_data = fetch_live_gas_price()
     if not args.json:
         print(f"  [+] Gas Price    : {gas_data.get('gas_price_gwei')} Gwei")
@@ -129,24 +131,25 @@ def cmd_demo(args):
         print(f"  [+] Node Status  : {gas_data.get('status')}")
 
     if not args.json:
-        print("\n>>> PART 3: VERIFYING ON-CHAIN AMM ROUTER BYTECODE (FAIL-CLOSED CHECK)...")
+        print("\n>>> PART 3: AUDITING ON-CHAIN AMM ROUTER BYTECODE (ATLANTIC TESTNET)...")
     amm_check = check_on_chain_amm_pool("BASE", "QUOTE")
     if not args.json:
-        print(f"  [+] Router Address : {amm_check['router_address']}")
-        print(f"  [+] Bytecode Status: {amm_check['status']}")
-        print(f"  [+] Safety Action  : Fail-closed enforced. Zero simulated reserves substituted.")
+        print(f"  [+] Network Checked : {amm_check['network_name']}")
+        print(f"  [+] Router Address  : {amm_check['router_address']}")
+        print(f"  [+] Bytecode Status : {amm_check['status']} (0x bytecode)")
+        print(f"  [+] Production State: Live arbitrage unavailable -- no verified liquidity.")
 
     if not args.json:
-        print("\n>>> PART 4: MATHEMATICAL MODEL VALIDATION (ISOLATED TEST FIXTURES)...")
+        print("\n>>> PART 4: MATHEMATICAL UNIT TEST HARNESS (ISOLATED TEST FIXTURES)...")
+        print("    [Notice] Evaluating constant-product formulas (x*y=k) on isolated test fixtures for code verification only.")
 
-    # Controlled test fixture scenarios to verify AMM math (x*y=k) and waterfall deductions
     test_scenarios = [
         {
             "name": "Wide Spread (Math Verification)",
             "pair": "TEST/USD",
             "reserves": {
-                "venue_a": {"name": "Test Venue A", "reserve_base": 200000.0, "reserve_quote": 500000.0, "fee_ratio": 0.003, "gas_units": 140000},
-                "venue_b": {"name": "Test Venue B", "reserve_base": 200000.0, "reserve_quote": 512000.0, "fee_ratio": 0.0025, "gas_units": 155000}
+                "test_venue_a": {"name": "Test Venue A", "reserve_base": 200000.0, "reserve_quote": 500000.0, "fee_ratio": 0.003, "gas_units": 140000},
+                "test_venue_b": {"name": "Test Venue B", "reserve_base": 200000.0, "reserve_quote": 512000.0, "fee_ratio": 0.0025, "gas_units": 155000}
             },
             "volume": 2500.0,
             "min_profit": 5.0,
@@ -156,8 +159,8 @@ def cmd_demo(args):
             "name": "High Slippage Erosion (Guardrail Trigger)",
             "pair": "TEST/USD",
             "reserves": {
-                "venue_a": {"name": "Test Venue A", "reserve_base": 10000.0, "reserve_quote": 25000.0, "fee_ratio": 0.003, "gas_units": 140000},
-                "venue_b": {"name": "Test Venue B", "reserve_base": 10000.0, "reserve_quote": 25200.0, "fee_ratio": 0.0025, "gas_units": 155000}
+                "test_venue_a": {"name": "Test Venue A", "reserve_base": 10000.0, "reserve_quote": 25000.0, "fee_ratio": 0.003, "gas_units": 140000},
+                "test_venue_b": {"name": "Test Venue B", "reserve_base": 10000.0, "reserve_quote": 25200.0, "fee_ratio": 0.0025, "gas_units": 155000}
             },
             "volume": 10000.0,
             "min_profit": 5.0,
@@ -167,8 +170,8 @@ def cmd_demo(args):
             "name": "Inverted Spread (Zero Opportunity)",
             "pair": "TEST/USD",
             "reserves": {
-                "venue_a": {"name": "Test Venue A", "reserve_base": 100000.0, "reserve_quote": 255000.0, "fee_ratio": 0.003, "gas_units": 140000},
-                "venue_b": {"name": "Test Venue B", "reserve_base": 100000.0, "reserve_quote": 250000.0, "fee_ratio": 0.0025, "gas_units": 155000}
+                "test_venue_a": {"name": "Test Venue A", "reserve_base": 100000.0, "reserve_quote": 255000.0, "fee_ratio": 0.003, "gas_units": 140000},
+                "test_venue_b": {"name": "Test Venue B", "reserve_base": 100000.0, "reserve_quote": 250000.0, "fee_ratio": 0.0025, "gas_units": 155000}
             },
             "volume": 2500.0,
             "min_profit": 5.0,
@@ -197,10 +200,11 @@ def cmd_demo(args):
             print(f"      Reason: {dec['reason']}")
 
     report = {
-        "verified_chainlink_feeds": feeds_report,
+        "production_status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
+        "verified_reference_oracle_feeds": feeds_report,
         "atlantic_gas": gas_data,
         "amm_deployment_status": amm_check,
-        "mathematical_model_validation": math_results
+        "isolated_unit_test_math_validation": math_results
     }
 
     if args.json:
@@ -210,13 +214,13 @@ def cmd_demo(args):
 def main():
     parser = argparse.ArgumentParser(
         prog="pharos-scanner",
-        description="Pharos Arbitrage Scanner — Multi-venue discovery, AMM slippage, and waterfall netting"
+        description="Pharos Arbitrage Scanner -- On-chain oracle reading, AMM mathematics, and fail-closed audit engine"
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Command: scan
-    scan_p = subparsers.add_parser("scan", help="Scan verified on-chain pairs across venues")
-    scan_p.add_argument("--pair", type=str, default=None, help="Specific pair to scan (e.g. BTC/USD)")
+    scan_p = subparsers.add_parser("scan", help="Scan verified on-chain reference feeds and AMM status")
+    scan_p.add_argument("--pair", type=str, default=None, help="Specific feed to query (e.g. BTC/USD)")
     scan_p.add_argument("--volume", type=float, default=5000.0, help="Trade volume in USD (default: 5000)")
     scan_p.add_argument("--min-profit", type=float, default=5.0, help="Min net profit threshold USD (default: 5.0)")
     scan_p.add_argument("--max-slippage-bps", type=int, default=150, help="Max price impact in bps (default: 150)")

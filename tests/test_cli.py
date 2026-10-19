@@ -33,8 +33,8 @@ def test_cli_scan_json():
     assert isinstance(data, list)
     assert len(data) == 1
     assert data[0]["pair"] == "BTC/USD"
-    assert data[0]["data_mode"] == "VERIFIED_ON_CHAIN"
-    assert data[0]["decision"]["status"] in ("SKIPPED_UNAVAILABLE_LIQUIDITY", "SKIPPED_SOURCE_UNAVAILABLE")
+    assert data[0]["data_mode"] == "PRODUCTION_LIVE_AUDIT"
+    assert data[0]["decision"]["status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
 
 
 def test_cli_demo_suite():
@@ -42,13 +42,14 @@ def test_cli_demo_suite():
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
-    assert "verified_chainlink_feeds" in data
+    assert data["production_status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+    assert "verified_reference_oracle_feeds" in data
     assert "atlantic_gas" in data
     assert "amm_deployment_status" in data
-    assert "mathematical_model_validation" in data
+    assert "isolated_unit_test_math_validation" in data
 
     # Verify feeds are populated
-    feeds = data["verified_chainlink_feeds"]
+    feeds = data["verified_reference_oracle_feeds"]
     assert "BTC/USD" in feeds
 
     # Verify fail-closed AMM status
@@ -56,5 +57,5 @@ def test_cli_demo_suite():
     assert data["amm_deployment_status"]["status"] in ("UNAVAILABLE_NO_DEPLOYED_BYTECODE", "UNAVAILABLE_RPC_ERROR")
 
     # Verify mathematical models tested
-    models = data["mathematical_model_validation"]
+    models = data["isolated_unit_test_math_validation"]
     assert len(models) == 3

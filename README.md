@@ -50,10 +50,10 @@ In strict compliance with the **Zero Simulation Mandate**, this engine does **no
 
 3. **On-Chain AMM Bytecode Verification**:
    - The scanner checks contract bytecode across Atlantic Testnet before considering any route executable.
-   - When router addresses return `0x` (no deployed bytecode), the scanner **truthfully halts with `SKIPPED_UNAVAILABLE_LIQUIDITY`** and locks trade execution.
+   - When router addresses return `0x` (no deployed bytecode), the scanner **truthfully halts with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`** and permanently disables trade execution.
 
 4. **Mathematical AMM Model Validation Sandbox**:
-   - Pure constant-product ($x \cdot y = k$) formulas, LP fee deductions, and waterfall friction analysis are validated using clearly isolated, deterministic test fixtures labeled `TEST_FIXTURE_ISOLATION`.
+   - Pure constant-product ($x \cdot y = k$) formulas, LP fee deductions, and waterfall friction analysis are validated using clearly isolated, deterministic test fixtures labeled `TEST_FIXTURE_THRESHOLD_MET`.
 
 ---
 
@@ -81,17 +81,15 @@ $$\text{Price Impact (bps)} = \text{Price Impact Ratio} \times 10,000$$
 
 ```mermaid
 flowchart TD
-    A["Gross Price Spread (Venue B - Venue A)"] --> B["Deduct Leg 1 LP Fee"]
-    B --> C["Deduct Leg 1 AMM Curve Slippage Impact"]
-    C --> D["Deduct Leg 2 LP Fee"]
-    D --> E["Deduct Leg 2 AMM Curve Slippage Impact"]
-    E --> F["Deduct Live Pharos Testnet Gas (10 Gwei)"]
-    F --> G{"Net Profit >= Threshold?"}
-    G -- "Yes & Slippage <= Limit" --> H["ELIGIBLE: Prepare Canonical Router Calldata"]
-    G -- "Net < Min Threshold" --> I["SKIPPED: Below Profit Threshold"]
-    G -- "Net < 0" --> J["SKIPPED: Unprofitable After Friction"]
-    G -- "Slippage > Limit" --> K["SKIPPED: Excessive Market Slippage"]
-    G -- "No AMM Bytecode" --> L["FAIL-CLOSED: Liquidity Unavailable"]
+    A["Live Push Oracle (Pharos 1672) & Atlantic Testnet (688689)"] --> B{"AMM Bytecode Deployed?"}
+    B -- "No (0x Bytecode)" --> C["PRODUCTION STATUS: Live Arbitrage Unavailable (No Verified Liquidity)"]
+    C --> D["Fail-Closed Execution Lock (Execution Disabled)"]
+    B -- "Isolated Math Test Fixture" --> E["Evaluate Constant-Product Reserves (x*y=k)"]
+    E --> F["Deduct LP Swap Fees + Non-linear Slippage + Gas"]
+    F --> G{"Net Synthetic Profit >= Threshold?"}
+    G -- "Yes & Slippage <= Limit" --> H["TEST FIXTURE ONLY: Threshold Met (Not Live Execution)"]
+    G -- "Net < Min Threshold" --> I["TEST FIXTURE: Below Profit Threshold"]
+    G -- "Slippage > Limit" --> J["TEST FIXTURE: Excessive Price Impact"]
 ```
 
 ---
