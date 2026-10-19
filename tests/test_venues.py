@@ -1,58 +1,61 @@
 """
-Unit Tests for Multi-Venue Discovery & Pool Reading
+Unit Tests for Multi-Venue Discovery, On-Chain Feeds, and Bytecode Verification
 """
 
 import pytest
 from scanner.venues import (
     load_venues_config,
     get_supported_pairs,
-    scan_pair_venues
+    scan_pair_venues,
+    query_chainlink_feed,
+    check_on_chain_amm_pool
 )
 
 
 def test_load_venues_config():
     config = load_venues_config()
     assert "venues" in config
-    assert "pharos_swap" in config["venues"]
-    assert "lighthouse_dex" in config["venues"]
-    assert "pyth_oracle" in config["venues"]
+    assert "chainlink_feeds_cache" in config["venues"]
+    assert "chainlink_btc_proxy" in config["venues"]
+    assert "verified_feeds" in config
+    assert "verified_tokens" in config
 
 
 def test_get_supported_pairs():
     pairs = get_supported_pairs()
-    assert "PHRS/USDC" in pairs
-    assert "WPHRS/USDT" in pairs
-    assert "USDC/USDT" in pairs
+    assert "BTC/USD" in pairs
+    assert "ETH/USD" in pairs
+    assert "PROS/USD" in pairs
 
 
-def test_scan_pair_venues_multi_source():
-    # Criterion 01: Reads prices from at least 2 sources in the same scan
-    res = scan_pair_venues("PHRS/USDC")
-    assert res["pair"] == "PHRS/USDC"
-    assert "pharos_swap" in res["venues"]
-    assert "lighthouse_dex" in res["venues"]
-    assert "pyth_oracle" in res["venues"]
+def test_query_chainlink_feed_live():
+    data = query_chainlink_feed("BTC/USD")
+    if not data.get("is_available", False):
+        pytest.skip(f"Pharos RPC feed temporarily unreachable: {data.get('error')}")
+    assert data["pair"] == "BTC/USD"
+    assert data["price_usd"] > 10000.0
+    assert data["chain_id"] == 1672
+    assert data["cache_address"] == "0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8"
+    assert data["updated_at_epoch"] > 0
 
-    ps_spot = res["venues"]["pharos_swap"]["spot_price"]
-    lh_spot = res["venues"]["lighthouse_dex"]["spot_price"]
-    pyth_price = res["venues"]["pyth_oracle"]["benchmark_price"]
 
-    assert ps_spot > 0
-    assert lh_spot > 0
-    assert pyth_price > 0
-    assert res["is_stale"] is False
+def test_amm_pool_bytecode_fail_closed():
+    status = check_on_chain_amm_pool("BASE", "QUOTE")
+    assert status["is_deployed"] is False
+    assert status["status"] in ("UNAVAILABLE_NO_DEPLOYED_BYTECODE", "UNAVAILABLE_EMPTY_BYTECODE", "UNAVAILABLE_RPC_ERROR")
 
 
 def test_unsupported_pair_raises_error():
     with pytest.raises(ValueError):
-        scan_pair_venues("UNKNOWN/TOKEN")
+        scan_pair_venues("UNKNOWN/PAIR")
 
 
-def test_custom_reserves_override():
+def test_custom_reserves_isolation():
     custom = {
-        "pharos_swap": {"reserve_base": 50000.0, "reserve_quote": 100000.0},
-        "lighthouse_dex": {"reserve_base": 50000.0, "reserve_quote": 110000.0}
+        "venue_a": {"name": "Test A", "reserve_base": 50000.0, "reserve_quote": 100000.0},
+        "venue_b": {"name": "Test B", "reserve_base": 50000.0, "reserve_quote": 110000.0}
     }
-    res = scan_pair_venues("PHRS/USDC", custom_reserves=custom)
-    assert res["venues"]["pharos_swap"]["spot_price"] == 2.0
-    assert res["venues"]["lighthouse_dex"]["spot_price"] == 2.2
+    res = scan_pair_venues("BTC/USD", custom_reserves=custom)
+    assert res["is_test_fixture"] is True
+    assert res["venues"]["venue_a"]["spot_price"] == 2.0
+    assert res["venues"]["venue_b"]["spot_price"] == 2.2

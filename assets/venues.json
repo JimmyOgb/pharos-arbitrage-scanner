@@ -1,128 +1,113 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Pharos Trading Venues & Pool Configurations",
-  "venues": {
-    "pharos_swap": {
-      "id": "pharos_swap",
-      "name": "PharosSwap V2",
-      "type": "AMM_CONSTANT_PRODUCT",
-      "fee_bps": 30,
-      "fee_ratio": 0.003,
-      "gas_units_estimate": 140000,
-      "description": "Canonical Uniswap V2-style constant-product AMM on Pharos",
-      "status": "CALIBRATED_SIMULATION"
+  "title": "Pharos Verified Venues & On-Chain Contract Registry",
+  "version": "1.0.0",
+  "description": "Registry of verified on-chain price feeds, tokens, and DEX pool status on Pharos networks. Zero simulated reserves.",
+  "networks": {
+    "pharos_mainnet_preview": {
+      "name": "Pharos Network",
+      "chain_id": 1672,
+      "rpc_url": "https://rpc.pharos.xyz",
+      "explorer": "https://pharosscan.xyz"
     },
-    "lighthouse_dex": {
-      "id": "lighthouse_dex",
-      "name": "Lighthouse DEX",
-      "type": "AMM_CONSTANT_PRODUCT",
-      "fee_bps": 25,
-      "fee_ratio": 0.0025,
-      "gas_units_estimate": 155000,
-      "description": "High-throughput AMM pool with alternative liquidity curve",
-      "status": "CALIBRATED_SIMULATION"
-    },
-    "pyth_oracle": {
-      "id": "pyth_oracle",
-      "name": "Pyth Reference Oracle",
-      "type": "ORACLE_BENCHMARK",
-      "fee_bps": 0,
-      "fee_ratio": 0.0,
-      "gas_units_estimate": 0,
-      "description": "Zero-fee institutional reference feed for cross-venue fair price discovery",
-      "status": "BENCHMARK_FEED"
+    "pharos_atlantic_testnet": {
+      "name": "Pharos Atlantic Testnet",
+      "chain_id": 688689,
+      "rpc_url": "https://atlantic.dplabs-internal.com",
+      "explorer": "https://atlantic.pharosscan.xyz"
     }
   },
-  "default_pairs": [
-    {
-      "pair": "PHRS/USDC",
-      "base_token": "PHRS",
-      "quote_token": "USDC",
-      "pharos_swap": {
-        "reserve_base": 250000.0,
-        "reserve_quote": 625000.0,
-        "spot_price": 2.50
-      },
-      "lighthouse_dex": {
-        "reserve_base": 200000.0,
-        "reserve_quote": 512000.0,
-        "spot_price": 2.56
-      },
-      "oracle_price": 2.52
+  "venues": {
+    "chainlink_feeds_cache": {
+      "id": "chainlink_feeds_cache",
+      "name": "Chainlink Self-Managed Feeds Cache",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "address": "0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8",
+      "type": "ON_CHAIN_ORACLE_CACHE",
+      "bytecode_verified": true,
+      "bytecode_size_bytes": 3875,
+      "description": "On-chain push oracle feed cache verified on Pharos RPC"
     },
-    {
-      "pair": "WPHRS/USDT",
-      "base_token": "WPHRS",
-      "quote_token": "USDT",
-      "pharos_swap": {
-        "reserve_base": 85000.0,
-        "reserve_quote": 213350.0,
-        "spot_price": 2.51
-      },
-      "lighthouse_dex": {
-        "reserve_base": 110000.0,
-        "reserve_quote": 273900.0,
-        "spot_price": 2.49
-      },
-      "oracle_price": 2.50
+    "chainlink_btc_proxy": {
+      "id": "chainlink_btc_proxy",
+      "name": "Chainlink BTC/USD Aggregator Proxy",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "address": "0x8b5DB228Fbccf588f08B073C235254aCb6791D36",
+      "type": "AGGREGATOR_PROXY",
+      "feed_id": "0x00039d9e45394f473ab1f050a1b963e6b05351e52d71e507509ada0c95ed75b8",
+      "decimals": 18,
+      "bytecode_verified": true,
+      "description": "EACAggregatorProxy returning live answer and round data"
     },
-    {
-      "pair": "USDC/USDT",
-      "base_token": "USDC",
-      "quote_token": "USDT",
-      "pharos_swap": {
-        "reserve_base": 1500000.0,
-        "reserve_quote": 1500750.0,
-        "spot_price": 1.0005
-      },
-      "lighthouse_dex": {
-        "reserve_base": 1200000.0,
-        "reserve_quote": 1198800.0,
-        "spot_price": 0.9990
-      },
-      "oracle_price": 1.0000
+    "atlantic_amm_router": {
+      "id": "atlantic_amm_router",
+      "name": "Pharos Atlantic AMM Router",
+      "network": "pharos_atlantic_testnet",
+      "chain_id": 688689,
+      "address": "0x0000000000000000000000000000000000000000",
+      "type": "AMM_CONSTANT_PRODUCT",
+      "bytecode_verified": false,
+      "status": "UNAVAILABLE_NO_DEPLOYED_BYTECODE",
+      "description": "No canonical AMM router bytecode deployed on Atlantic Testnet. Fail-closed enforced."
     }
-  ],
-  "market_scenarios": {
-    "profitable_arb": {
-      "name": "Wide Spread Opportunity (Profitable)",
-      "pair": "PHRS/USDC",
-      "buy_venue": "pharos_swap",
-      "buy_price": 2.50,
-      "sell_venue": "lighthouse_dex",
-      "sell_price": 2.56,
-      "gross_spread_pct": 2.40,
-      "expected_outcome": "ELIGIBLE_FOR_EXECUTION"
+  },
+  "verified_tokens": {
+    "pharos_atlantic_testnet": {
+      "USDC": {
+        "symbol": "USDC",
+        "address": "0xcfC8330f4BCAB529c625D12781b1C19466A9Fc8B",
+        "decimals": 6
+      },
+      "USDT": {
+        "symbol": "USDT",
+        "address": "0xE7E84B8B4f39C507499c40B4ac199B050e2882d5",
+        "decimals": 6
+      },
+      "WPHRS": {
+        "symbol": "WPHRS",
+        "address": "0x838800b758277CC111B2d48Ab01e5E164f8E9471",
+        "decimals": 18
+      },
+      "WBTC": {
+        "symbol": "WBTC",
+        "address": "0x0c64F03EEa5c30946D5c55B4b532D08ad74638a4",
+        "decimals": 8
+      },
+      "WETH": {
+        "symbol": "WETH",
+        "address": "0x7d211F77525ea39A0592794f793cC1036eEaccD5",
+        "decimals": 18
+      },
+      "Multicall3": {
+        "symbol": "Multicall3",
+        "address": "0xcA11bde05977b3631167028862bE2a173976CA11",
+        "decimals": 0
+      }
+    }
+  },
+  "verified_feeds": {
+    "BTC/USD": {
+      "pair": "BTC/USD",
+      "feed_id": "0x00039d9e45394f473ab1f050a1b963e6b05351e52d71e507509ada0c95ed75b8",
+      "proxy": "0x8b5DB228Fbccf588f08B073C235254aCb6791D36",
+      "decimals": 18,
+      "cache_address": "0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8"
     },
-    "slippage_eroded": {
-      "name": "High Slippage Erosion (Unprofitable)",
-      "pair": "PHRS/USDC",
-      "buy_venue": "pharos_swap",
-      "buy_price": 2.50,
-      "sell_venue": "lighthouse_dex",
-      "sell_price": 2.52,
-      "gross_spread_pct": 0.80,
-      "expected_outcome": "SKIPPED_UNPROFITABLE_AFTER_COSTS"
+    "ETH/USD": {
+      "pair": "ETH/USD",
+      "feed_id": "0x000362205e10b3a147d02792eccee483dca6c7b44ecce7012cb8c6e0b68b3ae9",
+      "proxy": null,
+      "decimals": 18,
+      "cache_address": "0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8"
     },
-    "gas_eroded": {
-      "name": "Micro-Spread Wiped by Gas",
-      "pair": "USDC/USDT",
-      "buy_venue": "lighthouse_dex",
-      "buy_price": 0.9990,
-      "sell_venue": "pharos_swap",
-      "sell_price": 1.0005,
-      "gross_spread_pct": 0.15,
-      "expected_outcome": "SKIPPED_BELOW_MIN_PROFIT_THRESHOLD"
-    },
-    "inverted_spread": {
-      "name": "Efficient Market (No Spread)",
-      "pair": "PHRS/USDC",
-      "buy_venue": "pharos_swap",
-      "buy_price": 2.55,
-      "sell_venue": "lighthouse_dex",
-      "sell_price": 2.50,
-      "gross_spread_pct": -1.96,
-      "expected_outcome": "SKIPPED_NEGATIVE_SPREAD"
+    "PROS/USD": {
+      "pair": "PROS/USD",
+      "feed_id": "0x0003f73a1abb2eec1ecdde915c659cbb8f0cbb030156b75dd401fbfd5281e246",
+      "proxy": null,
+      "decimals": 18,
+      "cache_address": "0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8"
     }
   }
 }

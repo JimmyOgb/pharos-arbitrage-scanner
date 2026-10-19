@@ -1,13 +1,18 @@
 """
-Multi-Venue Price Discovery & Pool State Reader
-Retrieves reserves, spot rates, and timestamps across multiple liquidity venues.
+Multi-Venue Price Discovery & Real On-Chain Feed Reader
+Queries verified Chainlink feed contracts and token registries on Pharos networks.
+Fail-closed architecture: Zero simulated reserves or fabricated market quotes.
 """
 
 import json
 import time
+import urllib.request
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+
+PHAROS_RPC = "https://rpc.pharos.xyz"
+ATLANTIC_RPC = "https://atlantic.dplabs-internal.com"
 
 
 def get_assets_path() -> Path:
@@ -23,9 +28,141 @@ def load_venues_config() -> Dict[str, Any]:
 
 
 def get_supported_pairs() -> List[str]:
-    """Returns list of configured trading pairs."""
+    """Returns list of configured verified trading pairs."""
     config = load_venues_config()
-    return [p["pair"] for p in config.get("default_pairs", [])]
+    return list(config.get("verified_feeds", {}).keys())
+
+
+def make_rpc_call(rpc_url: str, method: str, params: list, timeout: float = 6.0) -> Any:
+    """Performs JSON-RPC call against verified node endpoint."""
+    payload = json.dumps({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": method,
+        "params": params
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        rpc_url,
+        data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+        if "error" in data:
+            raise RuntimeError(f"RPC error from {rpc_url}: {data['error']}")
+        return data["result"]
+
+
+def query_chainlink_feed(pair_name: str, rpc_url: str = PHAROS_RPC, timeout: float = 6.0) -> Dict[str, Any]:
+    """
+    Queries real on-chain Chainlink feed cache on Pharos.
+    Uses verified SelfManagedFeedsCache (0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8).
+    Fails closed if the RPC endpoint times out or fails.
+    """
+    config = load_venues_config()
+    feed_cfg = config.get("verified_feeds", {}).get(pair_name)
+    if not feed_cfg:
+        raise ValueError(f"Pair '{pair_name}' not found in verified on-chain feeds: {get_supported_pairs()}")
+
+    cache_address = feed_cfg["cache_address"]
+    feed_id = feed_cfg["feed_id"]
+    decimals = feed_cfg["decimals"]
+    proxy_address = feed_cfg.get("proxy")
+
+    try:
+        # Selector 0x075482bf: getPrice(bytes32 feedId)
+        price_calldata = "0x075482bf" + feed_id[2:]
+        price_hex = make_rpc_call(rpc_url, "eth_call", [{"to": cache_address, "data": price_calldata}, "latest"], timeout=timeout)
+        price_raw = int(price_hex, 16)
+        price_usd = price_raw / (10 ** decimals)
+
+        # Selector 0xab626992: getTimestamp(bytes32 feedId)
+        ts_calldata = "0xab626992" + feed_id[2:]
+        ts_hex = make_rpc_call(rpc_url, "eth_call", [{"to": cache_address, "data": ts_calldata}, "latest"], timeout=timeout)
+        updated_at_epoch = int(ts_hex, 16)
+
+        proxy_verified = False
+        if proxy_address:
+            try:
+                proxy_res = make_rpc_call(rpc_url, "eth_call", [{"to": proxy_address, "data": "0xfeaf968c"}, "latest"], timeout=timeout)
+                if len(proxy_res) >= 130:
+                    proxy_verified = True
+            except Exception:
+                proxy_verified = False
+
+        return {
+            "pair": pair_name,
+            "price_usd": round(price_usd, 4),
+            "raw_value": price_raw,
+            "decimals": decimals,
+            "updated_at_epoch": updated_at_epoch,
+            "updated_at_iso": datetime.fromtimestamp(updated_at_epoch, tz=timezone.utc).isoformat() if updated_at_epoch > 0 else None,
+            "cache_address": cache_address,
+            "proxy_address": proxy_address,
+            "proxy_verified": proxy_verified,
+            "source": "PHAROS_CHAINLINK_PUSH_ENGINE",
+            "chain_id": 1672,
+            "status": "HEALTHY",
+            "is_available": True
+        }
+    except Exception as e:
+        return {
+            "pair": pair_name,
+            "price_usd": None,
+            "raw_value": None,
+            "decimals": decimals,
+            "updated_at_epoch": None,
+            "updated_at_iso": None,
+            "cache_address": cache_address,
+            "proxy_address": proxy_address,
+            "proxy_verified": False,
+            "source": "PHAROS_CHAINLINK_PUSH_ENGINE",
+            "chain_id": 1672,
+            "status": "UNAVAILABLE",
+            "is_available": False,
+            "error": str(e)
+        }
+
+
+def check_on_chain_amm_pool(token_a_symbol: str, token_b_symbol: str, rpc_url: str = ATLANTIC_RPC) -> Dict[str, Any]:
+    """
+    Verifies bytecode existence and reserves for AMM liquidity pools on Pharos Atlantic Testnet.
+    Returns explicit UNAVAILABLE status when no router or factory bytecode exists.
+    """
+    config = load_venues_config()
+    router_cfg = config.get("venues", {}).get("atlantic_amm_router", {})
+    router_address = router_cfg.get("address", "0x0000000000000000000000000000000000000000")
+
+    if router_address == "0x0000000000000000000000000000000000000000":
+        return {
+            "is_deployed": False,
+            "status": "UNAVAILABLE_NO_DEPLOYED_BYTECODE",
+            "router_address": router_address,
+            "message": "No verified AMM router deployed on Atlantic Testnet (fail-closed, zero fake liquidity substituted)."
+        }
+
+    try:
+        code = make_rpc_call(rpc_url, "eth_getCode", [router_address, "latest"])
+        if code in ("0x", "0x0", ""):
+            return {
+                "is_deployed": False,
+                "status": "UNAVAILABLE_EMPTY_BYTECODE",
+                "router_address": router_address,
+                "message": f"Contract address {router_address} contains empty bytecode (0x). No AMM pool active."
+            }
+        return {
+            "is_deployed": True,
+            "status": "DEPLOYED",
+            "router_address": router_address
+        }
+    except Exception as e:
+        return {
+            "is_deployed": False,
+            "status": "UNAVAILABLE_RPC_ERROR",
+            "router_address": router_address,
+            "message": f"RPC check failed: {str(e)}"
+        }
 
 
 def scan_pair_venues(
@@ -33,78 +170,100 @@ def scan_pair_venues(
     custom_reserves: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Simultaneously reads pricing and reserve state across dual AMM venues
-    and benchmark oracle for a specific trading pair.
+    Reads pricing and venue states across verified on-chain sources.
+    If custom_reserves is passed (in isolated mathematical test harnesses),
+    it evaluates the AMM constant-product model explicitly tagged as a test fixture.
     """
-    config = load_venues_config()
-    pair_data = None
-    for p in config.get("default_pairs", []):
-        if p["pair"].upper() == pair_name.upper():
-            pair_data = p
-            break
-
-    if not pair_data:
-        raise ValueError(f"Pair '{pair_name}' not found in registered venues. Supported: {get_supported_pairs()}")
-
     now_iso = datetime.now(timezone.utc).isoformat()
     now_ts = time.time()
 
-    pharos_swap_cfg = config["venues"]["pharos_swap"]
-    lighthouse_cfg = config["venues"]["lighthouse_dex"]
-    pyth_cfg = config["venues"]["pyth_oracle"]
-
-    ps_pool = pair_data["pharos_swap"]
-    lh_pool = pair_data["lighthouse_dex"]
-
+    # Case A: Mathematical Test Fixture Mode (for pure unit tests)
     if custom_reserves:
-        if "pharos_swap" in custom_reserves:
-            ps_pool = custom_reserves["pharos_swap"]
-        if "lighthouse_dex" in custom_reserves:
-            lh_pool = custom_reserves["lighthouse_dex"]
+        if "venue_a" not in custom_reserves and "venue_b" not in custom_reserves and "pharos_swap" not in custom_reserves:
+            raise ValueError("custom_reserves must provide venue pools for testing")
 
-    ps_spot = ps_pool["reserve_quote"] / ps_pool["reserve_base"]
-    lh_spot = lh_pool["reserve_quote"] / lh_pool["reserve_base"]
-    oracle_price = pair_data.get("oracle_price", (ps_spot + lh_spot) / 2.0)
+        va = custom_reserves.get("venue_a") or custom_reserves.get("pharos_swap", {})
+        vb = custom_reserves.get("venue_b") or custom_reserves.get("lighthouse_dex", {})
+
+        va_spot = va["reserve_quote"] / va["reserve_base"] if va.get("reserve_base", 0) > 0 else 0.0
+        vb_spot = vb["reserve_quote"] / vb["reserve_base"] if vb.get("reserve_base", 0) > 0 else 0.0
+
+        return {
+            "pair": pair_name,
+            "timestamp": now_iso,
+            "timestamp_epoch": now_ts,
+            "data_freshness_seconds": 0.0,
+            "is_stale": False,
+            "is_test_fixture": True,
+            "venues": {
+                "venue_a": {
+                    "id": "venue_a",
+                    "name": va.get("name", "Test Venue A"),
+                    "type": "AMM_CONSTANT_PRODUCT",
+                    "fee_ratio": va.get("fee_ratio", 0.003),
+                    "gas_units": va.get("gas_units", 140000),
+                    "reserve_base": va["reserve_base"],
+                    "reserve_quote": va["reserve_quote"],
+                    "spot_price": round(va_spot, 6),
+                    "status": "ISOLATED_TEST_FIXTURE"
+                },
+                "venue_b": {
+                    "id": "venue_b",
+                    "name": vb.get("name", "Test Venue B"),
+                    "type": "AMM_CONSTANT_PRODUCT",
+                    "fee_ratio": vb.get("fee_ratio", 0.0025),
+                    "gas_units": vb.get("gas_units", 155000),
+                    "reserve_base": vb["reserve_base"],
+                    "reserve_quote": vb["reserve_quote"],
+                    "spot_price": round(vb_spot, 6),
+                    "status": "ISOLATED_TEST_FIXTURE"
+                }
+            }
+        }
+
+    # Case B: Live On-Chain Scan Mode
+    if pair_name.upper() not in [p.upper() for p in get_supported_pairs()]:
+        raise ValueError(f"Pair '{pair_name}' not supported. Verified feeds: {get_supported_pairs()}")
+
+    feed_data = query_chainlink_feed(pair_name)
+    amm_check = check_on_chain_amm_pool("BASE", "QUOTE")
+
+    price_usd = feed_data.get("price_usd")
+    updated_at = feed_data.get("updated_at_epoch")
+    freshness = max(0.0, now_ts - updated_at) if updated_at and updated_at > 0 else 0.0
+    is_stale = freshness > 86400 or (not feed_data.get("is_available", False))
 
     return {
         "pair": pair_name,
-        "base_token": pair_data["base_token"],
-        "quote_token": pair_data["quote_token"],
         "timestamp": now_iso,
         "timestamp_epoch": now_ts,
-        "data_freshness_seconds": 0.1,
-        "is_stale": False,
+        "data_freshness_seconds": round(freshness, 1),
+        "is_stale": is_stale,
+        "is_test_fixture": False,
         "venues": {
-            "pharos_swap": {
-                "id": "pharos_swap",
-                "name": pharos_swap_cfg["name"],
-                "type": pharos_swap_cfg["type"],
-                "fee_bps": pharos_swap_cfg["fee_bps"],
-                "fee_ratio": pharos_swap_cfg["fee_ratio"],
-                "gas_units": pharos_swap_cfg["gas_units_estimate"],
-                "reserve_base": ps_pool["reserve_base"],
-                "reserve_quote": ps_pool["reserve_quote"],
-                "spot_price": round(ps_spot, 6),
-                "status": pharos_swap_cfg["status"]
+            "chainlink_push_engine": {
+                "id": "chainlink_push_engine",
+                "name": "Chainlink Self-Managed Feeds Cache (Pharos)",
+                "type": "ON_CHAIN_ORACLE_PUSH",
+                "contract_address": feed_data["cache_address"],
+                "proxy_address": feed_data["proxy_address"],
+                "proxy_verified": feed_data.get("proxy_verified", False),
+                "spot_price": price_usd,
+                "updated_at_iso": feed_data["updated_at_iso"],
+                "updated_at_epoch": updated_at,
+                "chain_id": feed_data["chain_id"],
+                "status": feed_data["status"],
+                "is_available": feed_data["is_available"],
+                "error": feed_data.get("error")
             },
-            "lighthouse_dex": {
-                "id": "lighthouse_dex",
-                "name": lighthouse_cfg["name"],
-                "type": lighthouse_cfg["type"],
-                "fee_bps": lighthouse_cfg["fee_bps"],
-                "fee_ratio": lighthouse_cfg["fee_ratio"],
-                "gas_units": lighthouse_cfg["gas_units_estimate"],
-                "reserve_base": lh_pool["reserve_base"],
-                "reserve_quote": lh_pool["reserve_quote"],
-                "spot_price": round(lh_spot, 6),
-                "status": lighthouse_cfg["status"]
-            },
-            "pyth_oracle": {
-                "id": "pyth_oracle",
-                "name": pyth_cfg["name"],
-                "type": pyth_cfg["type"],
-                "benchmark_price": round(oracle_price, 6),
-                "status": pyth_cfg["status"]
+            "atlantic_amm": {
+                "id": "atlantic_amm",
+                "name": "Pharos Atlantic Testnet AMM",
+                "type": "AMM_CONSTANT_PRODUCT",
+                "status": amm_check["status"],
+                "is_deployed": amm_check["is_deployed"],
+                "router_address": amm_check["router_address"],
+                "message": amm_check["message"]
             }
         }
     }

@@ -2,6 +2,7 @@
 Cost Estimation & Profit Waterfall Engine
 Calculates LP swap fees, queries live network gas from Pharos Atlantic Testnet,
 and evaluates transparent waterfall friction deductions.
+Strictly fail-closed: No fabricated fallback constants substituted if RPC fails.
 """
 
 import urllib.request
@@ -9,17 +10,16 @@ import json
 from typing import Dict, Any, Optional
 
 DEFAULT_ATLANTIC_RPC = "https://atlantic.dplabs-internal.com"
-FALLBACK_GAS_PRICE_GWEI = 10.0
 DEFAULT_PHRS_PRICE_USD = 2.50
 
 
 def fetch_live_gas_price(
     rpc_url: str = DEFAULT_ATLANTIC_RPC,
-    timeout: float = 3.0
+    timeout: float = 3.5
 ) -> Dict[str, Any]:
     """
     Fetches real live gas price and latest block height directly from Pharos Atlantic Testnet.
-    Falls back gracefully to calibrated testnet constants if offline.
+    Fails closed if the RPC endpoint cannot be reached. Never fabricates fake gas or block numbers.
     """
     payload = json.dumps({
         "jsonrpc": "2.0",
@@ -39,7 +39,7 @@ def fetch_live_gas_price(
         req = urllib.request.Request(
             rpc_url,
             data=payload,
-            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.1.0"}
+            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
@@ -49,7 +49,7 @@ def fetch_live_gas_price(
         block_req = urllib.request.Request(
             rpc_url,
             data=block_payload,
-            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.1.0"}
+            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
         )
         with urllib.request.urlopen(block_req, timeout=timeout) as resp:
             block_data = json.loads(resp.read().decode("utf-8"))
@@ -61,17 +61,19 @@ def fetch_live_gas_price(
             "gas_price_wei": gas_wei,
             "gas_price_gwei": round(gas_gwei, 4),
             "block_number": block_number,
-            "is_live": True
+            "is_live": True,
+            "status": "HEALTHY"
         }
     except Exception as e:
         return {
-            "source": "CALIBRATED_FALLBACK",
+            "source": "LIVE_ATLANTIC_RPC",
             "rpc_url": rpc_url,
-            "gas_price_wei": int(FALLBACK_GAS_PRICE_GWEI * 1e9),
-            "gas_price_gwei": FALLBACK_GAS_PRICE_GWEI,
-            "block_number": 31608000,
+            "gas_price_wei": None,
+            "gas_price_gwei": None,
+            "block_number": None,
             "is_live": False,
-            "fallback_notice": f"RPC unreachable ({str(e)}), used verified testnet 10.0 Gwei constant"
+            "status": "UNAVAILABLE",
+            "error": f"Pharos Atlantic Testnet RPC unreachable: {str(e)}"
         }
 
 
@@ -88,8 +90,8 @@ def calculate_gas_cost_usd(
     """
     if gas_units < 0:
         raise ValueError(f"gas_units cannot be negative: {gas_units}")
-    if gas_price_gwei < 0:
-        raise ValueError(f"gas_price_gwei cannot be negative: {gas_price_gwei}")
+    if gas_price_gwei is None or gas_price_gwei < 0:
+        raise ValueError(f"gas_price_gwei must be a non-negative number, got {gas_price_gwei}")
 
     gas_cost_phrs = gas_units * (gas_price_gwei * 1e-9)
     gas_cost_usd = gas_cost_phrs * phrs_price_usd

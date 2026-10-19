@@ -1,5 +1,5 @@
 """
-Unit Tests for Cost Estimation and Profit Waterfall Deductions
+Unit Tests for Cost Estimation, Live Network Gas, and Profit Waterfall Deductions
 """
 
 import pytest
@@ -45,7 +45,6 @@ def test_waterfall_net_profit_deduction():
 
 
 def test_waterfall_unprofitable_opportunity():
-    # Small gross spread $20 wiped out by $50 friction
     wf = compute_net_waterfall(
         trade_volume_usd=5000.0,
         gross_spread_usd=20.0,
@@ -80,9 +79,11 @@ def test_negative_costs_raise_error():
         )
 
 
-def test_fallback_gas_price():
-    # When pointed at unreachable RPC, fallback safely returns testnet standard 10 Gwei
+def test_unreachable_rpc_fails_closed():
+    # When pointed at unreachable RPC, fails closed without fabricating fake gas numbers
     res = fetch_live_gas_price(rpc_url="http://127.0.0.1:9999/unreachable", timeout=0.1)
     assert res["is_live"] is False
-    assert res["gas_price_gwei"] == 10.0
-    assert "fallback_notice" in res
+    assert res["status"] == "UNAVAILABLE"
+    assert res["gas_price_gwei"] is None
+    assert res["block_number"] is None
+    assert "error" in res

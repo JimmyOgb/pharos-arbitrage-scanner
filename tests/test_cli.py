@@ -15,23 +15,26 @@ def test_cli_live_gas():
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
-    assert "gas_price_gwei" in data
-    assert data["gas_price_gwei"] > 0
+    assert "status" in data
+    if data.get("is_live"):
+        assert data["gas_price_gwei"] > 0
+    else:
+        assert data["status"] == "UNAVAILABLE"
 
 
 def test_cli_scan_json():
     cmd = [
         sys.executable, str(ROOT_DIR / "scripts" / "scanner.py"),
-        "scan", "--pair", "PHRS/USDC", "--volume", "2000", "--json"
+        "scan", "--pair", "BTC/USD", "--volume", "2000", "--json"
     ]
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
     assert isinstance(data, list)
     assert len(data) == 1
-    assert data[0]["pair"] == "PHRS/USDC"
-    assert "waterfall" in data[0]
-    assert "decision" in data[0]
+    assert data[0]["pair"] == "BTC/USD"
+    assert data[0]["data_mode"] == "VERIFIED_ON_CHAIN"
+    assert data[0]["decision"]["status"] in ("SKIPPED_UNAVAILABLE_LIQUIDITY", "SKIPPED_SOURCE_UNAVAILABLE")
 
 
 def test_cli_demo_suite():
@@ -39,11 +42,19 @@ def test_cli_demo_suite():
     proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     assert proc.returncode == 0
     data = json.loads(proc.stdout)
-    assert isinstance(data, list)
-    assert len(data) == 4
-    # All 4 scenarios present
-    sc_ids = [d["scenario_id"] for d in data]
-    assert "profitable_arb" in sc_ids
-    assert "slippage_eroded" in sc_ids
-    assert "gas_eroded" in sc_ids
-    assert "inverted_spread" in sc_ids
+    assert "verified_chainlink_feeds" in data
+    assert "atlantic_gas" in data
+    assert "amm_deployment_status" in data
+    assert "mathematical_model_validation" in data
+
+    # Verify feeds are populated
+    feeds = data["verified_chainlink_feeds"]
+    assert "BTC/USD" in feeds
+
+    # Verify fail-closed AMM status
+    assert data["amm_deployment_status"]["is_deployed"] is False
+    assert data["amm_deployment_status"]["status"] in ("UNAVAILABLE_NO_DEPLOYED_BYTECODE", "UNAVAILABLE_RPC_ERROR")
+
+    # Verify mathematical models tested
+    models = data["mathematical_model_validation"]
+    assert len(models) == 3

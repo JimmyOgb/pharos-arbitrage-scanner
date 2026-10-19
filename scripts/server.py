@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Lightweight Local REST Server & Static Asset Server for Web Visualizer
-Provides JSON endpoints for live Atlantic gas, multi-venue scanning, and simulated execution.
-Zero third-party packages required (standard library http.server).
+Provides JSON endpoints for live Atlantic gas, verified Chainlink feeds, and AMM mathematics.
+Zero simulated execution receipts. Strictly real data and transparent mathematical models.
 """
 
 import http.server
@@ -19,9 +19,9 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 from scanner.evaluator import evaluate_arbitrage
-from scanner.venues import get_supported_pairs, scan_pair_venues
+from scanner.venues import get_supported_pairs, query_chainlink_feed, check_on_chain_amm_pool
 from scanner.costs import fetch_live_gas_price
-from scanner.payload import generate_atomic_payload, execute_simulated_trade
+from scanner.payload import generate_arbitrage_calldata
 
 PORT = 8088
 WEB_DIR = root_dir / "web"
@@ -40,6 +40,23 @@ class ScannerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/api/live-gas":
             gas_info = fetch_live_gas_price()
             self._send_json(gas_info)
+            return
+
+        # API: /api/feeds
+        if path == "/api/feeds":
+            feeds = {}
+            for pair in get_supported_pairs():
+                try:
+                    feeds[pair] = query_chainlink_feed(pair)
+                except Exception as e:
+                    feeds[pair] = {"error": str(e)}
+            self._send_json({"feeds": feeds})
+            return
+
+        # API: /api/amm-status
+        if path == "/api/amm-status":
+            status = check_on_chain_amm_pool("BASE", "QUOTE")
+            self._send_json(status)
             return
 
         # API: /api/pairs
@@ -80,15 +97,24 @@ class ScannerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed_url = urllib.parse.urlparse(self.path)
-        if parsed_url.path == "/api/execute":
+
+        # Mathematical Model Evaluation Sandbox
+        if parsed_url.path == "/api/math-evaluate":
             content_length = int(self.headers.get("Content-Length", 0))
             post_data = self.rfile.read(content_length)
             try:
                 body = json.loads(post_data.decode("utf-8"))
-                evaluation = body.get("evaluation")
-                payload = generate_atomic_payload(evaluation)
-                receipt = execute_simulated_trade(payload)
-                self._send_json({"payload": payload, "receipt": receipt})
+                res = evaluate_arbitrage(
+                    pair_name=body.get("pair", "MATH/TEST"),
+                    trade_volume_usd=float(body.get("volume", 2500.0)),
+                    min_net_profit_usd=float(body.get("min_profit", 5.0)),
+                    max_slippage_bps=int(body.get("max_slippage", 150)),
+                    custom_reserves=body.get("custom_reserves")
+                )
+                calldata = None
+                if res["decision"]["is_eligible"]:
+                    calldata = generate_arbitrage_calldata(res)
+                self._send_json({"evaluation": res, "prepared_calldata": calldata})
             except Exception as e:
                 self._send_json({"error": str(e)}, status=400)
             return
@@ -110,11 +136,11 @@ def run_server(port: int = PORT):
     handler = ScannerHTTPRequestHandler
     with socketserver.TCPServer(("", port), handler) as httpd:
         print(f"\n=======================================================")
-        print(f"  Pharos Arbitrage Scanner Web Server Active")
+        print(f"  Pharos Arbitrage Scanner Server Active (Zero Simulation)")
         print(f"  URL: http://localhost:{port}")
         print(f"  API: http://localhost:{port}/api/scan")
+        print(f"  Live Feeds: http://localhost:{port}/api/feeds")
         print(f"  Serving Static Assets from: {WEB_DIR}")
-        print(f"  Press Ctrl+C to terminate server")
         print(f"=======================================================\n")
         try:
             httpd.serve_forever()
