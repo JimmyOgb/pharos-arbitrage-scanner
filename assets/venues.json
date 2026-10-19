@@ -51,6 +51,21 @@
       "bytecode_verified": false,
       "status": "UNAVAILABLE_NO_DEPLOYED_BYTECODE",
       "description": "No canonical AMM router bytecode deployed on Atlantic Testnet. Fail-closed enforced."
+    },
+    "faroswap_router": {
+      "id": "faroswap_router",
+      "name": "FaroSwap Router",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "address": "0xd285e37678f07631f33eb99927eb3ff0591a12d7",
+      "factory_address": "0x18fab7d7027e9fb33fa90ca607439449209f7b09",
+      "type": "AMM_CONSTANT_PRODUCT",
+      "bytecode_verified": true,
+      "bytecode_size_bytes": 35708,
+      "deployed_pairs_count": 111,
+      "active_liquidity_pools_count": 0,
+      "status": "ZERO_LIQUIDITY_DEPLOYED",
+      "description": "FaroSwap Uniswap-V2 style router verified on Pharos Mainnet (Chain 1672). Factory deployed with 111 pairs, currently holding zero/dust reserves. No secondary DEX deployed on network."
     }
   },
   "verified_tokens": {

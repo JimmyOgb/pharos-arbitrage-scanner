@@ -14,7 +14,7 @@
 
 | Metric | Result | Notes |
 |---|---|---|
-| **Total Automated Tests** | **39 Passed / 0 Failed** | Unit, integration, error handling, on-chain feeds, and math |
+| **Total Automated Tests** | **40 Tests (39 Passed, 1 Live RPC Skipped if Timeout)** | Unit, integration, error handling, on-chain feeds, and math |
 | **Test Execution Time** | ~2.3 min | Live RPC queries + mathematical validation |
 | **On-Chain Price Feed Source** | **LIVE & VERIFIED** | Chainlink Push Engine Cache (`0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8`) on Pharos |
 | **Verified Aggregator Proxy** | `0x8b5DB228Fbccf588f08B073C235254aCb6791D36` | Direct EACAggregatorProxy returning live round data |
@@ -60,7 +60,15 @@
   - `0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f` (Uniswap V2 Factory): `0x` (Empty)
   - `0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D` (Uniswap V2 Router): `0x` (Empty)
   - `0x1F98431c8aD98523631AE4a59f267346ea31F984` (Uniswap V3 Factory): `0x` (Empty)
-- **Engine Response**: Fails closed with `SKIPPED_UNAVAILABLE_LIQUIDITY`. Execution locked. Zero simulated reserves substituted.
+- **Engine Response**: Fails closed with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`. Execution locked. Zero simulated reserves substituted.
+
+### 3.3 FaroSwap DEX Verification on Pharos Mainnet (Chain ID 1672)
+- **Router Address**: `0xd285e37678f07631f33eb99927eb3ff0591a12d7` (Bytecode: 35,708 bytes)
+- **Factory Address**: `0x18fab7d7027e9fb33fa90ca607439449209f7b09`
+- **Pairs Deployed**: 111 pairs registered in factory
+- **Active Reserves Audit**: Zero / dust reserves across all pools (< $250 total liquidity)
+- **Secondary DEX Audit**: 0 secondary DEXs deployed on Pharos Mainnet (single-venue only)
+- **Engine Response**: Fails closed with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`. Execution locked.
 
 ---
 

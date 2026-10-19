@@ -96,11 +96,15 @@ flowchart TD
 
 ## 5. Network & Contract Configuration
 
-### Pharos Network (Push Oracle Host)
-- **Chain ID**: `1672`
+### Pharos Network (Chain ID 1672: Push Oracle & FaroSwap Host)
+- **Chain ID**: `1672` (Hex: `0x688`)
 - **RPC Endpoint**: `https://rpc.pharos.xyz`
+- **Explorer**: `https://pharosscan.xyz`
 - **SelfManagedFeedsCache**: `0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8`
 - **BTC/USD Aggregator Proxy**: `0x8b5DB228Fbccf588f08B073C235254aCb6791D36`
+- **FaroSwap Router**: `0xd285e37678f07631f33eb99927eb3ff0591a12d7` (35.7 KB bytecode)
+- **FaroSwap Factory**: `0x18fab7d7027e9fb33fa90ca607439449209f7b09` (111 pairs deployed, zero active liquidity)
+- **Secondary DEX on Chain 1672**: `0` deployed (No independent second venue for cross-venue arbitrage)
 
 ### Pharos Atlantic Testnet (Gas & Settlement)
 - **Chain ID**: `688689` (`0xa8231`)

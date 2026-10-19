@@ -19,7 +19,7 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 from scanner.evaluator import evaluate_arbitrage
-from scanner.venues import get_supported_pairs, query_chainlink_feed, check_on_chain_amm_pool
+from scanner.venues import get_supported_pairs, query_chainlink_feed, check_on_chain_amm_pool, check_faroswap_mainnet_dex
 from scanner.costs import fetch_live_gas_price
 from scanner.payload import generate_arbitrage_calldata
 
@@ -56,6 +56,12 @@ class ScannerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # API: /api/amm-status
         if path == "/api/amm-status":
             status = check_on_chain_amm_pool("BASE", "QUOTE")
+            self._send_json(status)
+            return
+
+        # API: /api/faroswap-status
+        if path == "/api/faroswap-status":
+            status = check_faroswap_mainnet_dex()
             self._send_json(status)
             return
 

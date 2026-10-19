@@ -8,7 +8,8 @@ from scanner.venues import (
     get_supported_pairs,
     scan_pair_venues,
     query_chainlink_feed,
-    check_on_chain_amm_pool
+    check_on_chain_amm_pool,
+    check_faroswap_mainnet_dex
 )
 
 
@@ -61,3 +62,17 @@ def test_custom_reserves_isolation():
     assert res["is_test_fixture"] is True
     assert res["venues"]["test_venue_a"]["spot_price"] == 2.0
     assert res["venues"]["test_venue_b"]["spot_price"] == 2.2
+
+
+def test_check_faroswap_mainnet_dex():
+    data = check_faroswap_mainnet_dex()
+    if data["status"] == "UNAVAILABLE_RPC_ERROR":
+        pytest.skip(f"Pharos Mainnet RPC temporarily unreachable: {data.get('message')}")
+    assert data["chain_id"] == 1672
+    assert data["is_deployed"] is True
+    assert data["status"] == "DEPLOYED_ZERO_LIQUIDITY"
+    assert data["router_address"] == "0xd285e37678f07631f33eb99927eb3ff0591a12d7"
+    assert data["factory_address"] == "0x18fab7d7027e9fb33fa90ca607439449209f7b09"
+    assert data["deployed_pairs_count"] >= 100
+    assert data["secondary_dex_deployed"] is False
+

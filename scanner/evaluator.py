@@ -73,6 +73,8 @@ def evaluate_arbitrage(
                 }
             }
 
+        faroswap_venue = venues_snapshot["venues"].get("faroswap_router", {})
+
         return {
             "timestamp": venues_snapshot["timestamp"],
             "pair": pair_name,
@@ -83,16 +85,18 @@ def evaluate_arbitrage(
             "reference_oracle_price": spot_price,
             "oracle_venue": chainlink_venue,
             "amm_venue": amm_venue,
+            "faroswap_venue": faroswap_venue,
             "gas_details": live_gas_info,
             "waterfall": None,
             "decision": {
                 "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
                 "is_eligible": False,
                 "reason": (
-                    f"Live arbitrage unavailable — no verified liquidity. "
+                    f"Live arbitrage unavailable -- no verified liquidity. "
                     f"Verified Chainlink reference price is ${spot_price:,.2f} on Pharos RPC (Chain ID 1672). "
-                    f"However, reference oracles are non-executable benchmark feeds, and Pharos Atlantic Testnet (Chain ID 688689) "
-                    f"currently has 0 deployed AMM liquidity pools or router contracts (0x bytecode). "
+                    f"However, reference oracles are non-executable benchmark feeds, "
+                    f"FaroSwap DEX on Pharos Mainnet (Chain 1672) has 0 secondary DEXs deployed for cross-venue arbitrage, "
+                    f"and Pharos Atlantic Testnet (Chain ID 688689) currently has 0 deployed AMM liquidity pools or router contracts (0x bytecode). "
                     f"Two independent executable venue quotes are required for real arbitrage."
                 )
             }
