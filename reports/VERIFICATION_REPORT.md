@@ -126,23 +126,27 @@ RUNNING OFFICIAL LIVE AUDIT & MATHEMATICAL VERIFICATION SUITE
 
 ---
 
-## 5. Live Scan Output (`python scripts/scanner.py scan --pair BTC/USD`)
+## 5. Live Same-Scan Dual-Venue Output (`python scripts/scanner.py scan --pair PROS/USD`)
 
 ```text
-=======================================================
-Pair: BTC/USD | Mode: PRODUCTION_LIVE_AUDIT | Status: [LIVE ARBITRAGE UNAVAILABLE - NO VERIFIED LIQUIDITY]
-=======================================================
-  Reference Oracle Price  : $82,792.12 USD (Non-executable benchmark)
-  Oracle Source           : Chainlink Self-Managed Feeds Cache | Pharos RPC
-  Oracle Cache Address    : 0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8
-  Aggregator Proxy        : 0x8b5DB228Fbccf588f08B073C235254aCb6791D36 (Verified: True)
-  Last Feed Update        : 2026-10-19T07:45:11+00:00 (Epoch: 1792395911)
-  Atlantic Gas Price      : 10.0 Gwei | Block #31610751
-  Atlantic Network        : Pharos Atlantic Testnet
-  AMM Deployed Pools      : 0 pools (UNAVAILABLE_NO_DEPLOYED_BYTECODE)
-  Decision Gate           : LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY
-  Truthfulness Notice     : Live arbitrage unavailable -- no verified liquidity. Verified Chainlink reference price is $82,792.12 on Pharos RPC (Chain ID 1672). However, reference oracles are non-executable benchmark feeds, and Pharos Atlantic Testnet (Chain ID 688689) currently has 0 deployed AMM liquidity pools or router contracts (0x bytecode). Two independent executable venue quotes are required for real arbitrage.
-=======================================================
+========================================================================
+Pair: PROS/USD | Mode: PRODUCTION_LIVE_AUDIT | Status: [LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY]
+========================================================================
+  [Venue 1: DODO V2]       : $0.6237 USD | Fee: 15 bps | Router: 0xA5cA5Fbe34e444F366B373170541ec6902b0F75c
+  [Venue 2: FaroSwap V2]   : $0.5994 USD | Fee: 30 bps | Pair: 0x7f4a462fc320db1e26dd1366dce9e276ee6c5930
+  [Reference Oracle]       : $0.6221 USD (Chainlink Push Cache)
+  ----------------------------------------------------------------------
+  Same-Scan Direction      : Buy FaroSwap V2 AMM ($0.5994) -> Sell DODO V2 MixSwap Router ($0.6237)
+  Gross Spread             : 4.05% ($0.0243/unit | $202.70 on $5,000.00)
+  Waterfall - Buy Fee      : -$15.00
+  Waterfall - Sell Fee     : -$7.50
+  Waterfall - Slippage     : -$500.00 (Buy: $250.00, Sell: $250.00)
+  Waterfall - Network Gas  : -$0.0077 (10.0 Gwei | Block #31697669)
+  Waterfall - Net Profit   : $-319.81 (-6.40%)
+  ----------------------------------------------------------------------
+  Decision Gate Status     : LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY (is_eligible: False)
+  Gating Rationale         : Live arbitrage unavailable -- no verified liquidity depth to execute volume safely. Same-scan comparison completed between DODO V2 ($0.6237) and FaroSwap V2 ($0.5994). Gross spread is 4.05%. However, requested trade volume $5,000.00 exceeds verified on-chain pool depth ($0.28). Live execution locked fail-closed.
+========================================================================
 ```
 
 ---
