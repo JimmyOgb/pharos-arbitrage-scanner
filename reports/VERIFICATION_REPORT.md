@@ -65,13 +65,21 @@
   - `0x1F98431c8aD98523631AE4a59f267346ea31F984` (Uniswap V3 Factory): `0x` (Empty)
 - **Engine Response**: Fails closed with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`. Execution locked. Zero simulated reserves substituted.
 
-### 3.3 FaroSwap DEX Verification on Pharos Mainnet (Chain ID 1672)
+### 3.3 DEX Venue 1 — DODO V2 Verification on Pharos Mainnet (Chain ID 1672)
+- **Router Address**: `0xA5cA5Fbe34e444F366B373170541ec6902b0F75c` (Bytecode: 11,203 bytes)
+- **Approve Proxy**: `0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa`
+- **Protocol Fee Rate**: `1500000000000000` (15 bps / 0.15% via selector `0xb887bdac`)
+- **Routing Engine**: DODO PMM `mixSwap`, `dodoMutliSwap`, `externalSwap`
+- **Engine Role**: Executable DEX Venue 1 for same-scan multi-venue arbitrage comparison
+
+### 3.4 DEX Venue 2 — FaroSwap V2 AMM Verification on Pharos Mainnet (Chain ID 1672)
 - **Router Address**: `0xd285e37678f07631f33eb99927eb3ff0591a12d7` (Bytecode: 35,708 bytes)
 - **Factory Address**: `0x18fab7d7027e9fb33fa90ca607439449209f7b09`
 - **Pairs Deployed**: 111 pairs registered in factory
-- **Active Reserves Audit**: Zero / dust reserves across all pools (< $250 total liquidity)
-- **Secondary DEX Audit**: 0 secondary DEXs deployed on Pharos Mainnet (single-venue only)
-- **Engine Response**: Fails closed with `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY`. Execution locked.
+- **Primary Pair Analyzed**: Pair 2 (WPROS / USDC: `0x7f4a462fc320db1e26dd1366dce9e276ee6c5930`)
+- **Active Reserves Audit**: Sub-dollar dust reserves in Pair 2 (~0.47 WPROS / ~0.28 USDC)
+- **AMM Fee Rate**: 30 bps (0.30%)
+- **Engine Response**: Live same-scan price discovery succeeds against both venues. For standard trade volumes ($5,000), pool depth is exceeded; the scanner fails closed with `INSUFFICIENT_LIQUIDITY_DEPTH` / `LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY` and safely locks execution.
 
 ---
 
