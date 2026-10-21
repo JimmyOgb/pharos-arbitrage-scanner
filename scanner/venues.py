@@ -241,9 +241,14 @@ def query_dodo_v2_venue(
     block_num: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Queries real on-chain DODO V2 MixSwap Router and PMM pool state on Pharos Mainnet (Chain ID: 1672).
+    Queries real on-chain DODO V2 MixSwap Router on Pharos Mainnet (Chain ID: 1672).
     Router Contract: 0xA5cA5Fbe34e444F366B373170541ec6902b0F75c
     Approve Proxy:   0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa
+
+    Truthfulness: DODO V2 router bytecode (11,203 bytes) and routeFeeRate (15 bps) are verified on Mainnet.
+    However, there are no registered or verified on-chain pool contracts or executable quote routes
+    for BTC/USD, ETH/USD, or PROS/USD on DODO V2 on Pharos Mainnet.
+    Returns QUOTE_UNAVAILABLE_NO_VERIFIED_POOL (is_available: False). Zero synthetic quotes substituted.
     """
     config = load_venues_config()
     dodo_cfg = config.get("venues", {}).get("dodo_v2_router", {})
@@ -254,7 +259,6 @@ def query_dodo_v2_venue(
     gas_units = dodo_cfg.get("gas_units", 165000)
 
     try:
-        # Check bytecode verification
         bytecode_verified = dodo_cfg.get("bytecode_verified", True)
 
         # Query on-chain route fee rate if possible: selector 0xb887bdac -> routeFeeRate()
@@ -268,20 +272,6 @@ def query_dodo_v2_venue(
         except Exception:
             pass
 
-        # Use passed or queried oracle price
-        if oracle_price is None:
-            try:
-                oracle_data = query_chainlink_feed(pair_name, rpc_url, timeout=timeout)
-                oracle_price = oracle_data.get("reference_price_usd") or 0.60
-            except Exception:
-                oracle_price = 0.60
-
-        # DODO PMM spread model (0.15% fee, tight liquidity centering)
-        # For PROS/USD, realistic PMM asking price (0.25% premium over benchmark)
-        spot_price = round(oracle_price * 1.0025, 4)
-        reserve_base = 25000.0  # PROS depth in pool
-        reserve_quote = reserve_base * spot_price
-
         return {
             "id": "dodo_v2",
             "name": "DODO V2 MixSwap Router",
@@ -290,18 +280,23 @@ def query_dodo_v2_venue(
             "type": "DEX_PMM_ROUTER",
             "router_address": router_addr,
             "approve_proxy": approve_proxy,
+            "base_token_address": None,
+            "quote_token_address": None,
+            "base_decimals": None,
+            "quote_decimals": None,
             "fee_ratio": fee_ratio,
             "fee_bps": fee_bps,
             "gas_units": gas_units,
-            "spot_price": spot_price,
-            "reserve_base": reserve_base,
-            "reserve_quote": reserve_quote,
+            "spot_price": None,
+            "reserve_base": 0.0,
+            "reserve_quote": 0.0,
             "block_number": block_num,
             "timestamp_epoch": time.time(),
-            "is_executable_pool": True,
-            "is_available": True,
-            "status": "HEALTHY",
-            "bytecode_verified": bytecode_verified
+            "is_executable_pool": False,
+            "is_available": False,
+            "status": "QUOTE_UNAVAILABLE_NO_VERIFIED_POOL",
+            "bytecode_verified": bytecode_verified,
+            "message": f"DODO V2 router verified at {router_addr} (fee: {fee_bps} bps), but no verified pool contract or executable quote route exists on Pharos Mainnet for {pair_name}."
         }
     except Exception as e:
         return {
@@ -310,6 +305,9 @@ def query_dodo_v2_venue(
             "network": "Pharos Mainnet",
             "chain_id": 1672,
             "router_address": router_addr,
+            "spot_price": None,
+            "reserve_base": 0.0,
+            "reserve_quote": 0.0,
             "is_available": False,
             "status": "UNAVAILABLE_ERROR",
             "error": str(e)
@@ -328,6 +326,10 @@ def query_faroswap_v2_venue(
     Router:  0xd285e37678f07631f33eb99927eb3ff0591a12d7
     Factory: 0x18fab7d7027e9fb33fa90ca607439449209f7b09
     Pair 2:  0x7f4a462fc320db1e26dd1366dce9e276ee6c5930 (WPROS / USDC)
+
+    Truthfulness: Only Pair 2 (WPROS/USDC) has a verified on-chain pool. Other asset pairs
+    (e.g., BTC/USD, ETH/USD) do not exist on FaroSwap and return QUOTE_UNAVAILABLE_NO_POOL.
+    Zero synthetic multipliers or fake reserves substituted.
     """
     config = load_venues_config()
     faro_cfg = config.get("venues", {}).get("faroswap_router", {})
@@ -339,50 +341,74 @@ def query_faroswap_v2_venue(
     pair_address = faro_cfg.get("primary_pair_wpros_usdc", "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930")
 
     try:
-        r0 = 0.0
-        r1 = 0.0
         if pair_name.upper() in ("PROS/USD", "WPROS/USDC", "PROS/USDC"):
-            # Read reserves directly from pair 2 pool: selector 0x0902f1ac -> getReserves()
+            # Read reserves directly from Pair 2: selector 0x0902f1ac -> getReserves()
+            r0 = 0.0
+            r1 = 0.0
             res_hex = make_rpc_call(rpc_url, "eth_call", [{"to": pair_address, "data": "0x0902f1ac"}, "latest"], timeout=timeout)
             if res_hex and len(res_hex) >= 130:
                 raw_r0 = int(res_hex[2:66], 16)
                 raw_r1 = int(res_hex[66:130], 16)
-                r0 = raw_r0 / 1e18 # WPROS decimals: 18
-                r1 = raw_r1 / 1e6  # USDC decimals: 6
+                r0 = raw_r0 / 1e18  # WPROS decimals: 18
+                r1 = raw_r1 / 1e6   # USDC decimals: 6
 
-            if r0 > 0:
-                spot_price = round(r1 / r0, 4)
-            else:
-                spot_price = oracle_price if oracle_price else 0.5986
+            spot_price = round(r1 / r0, 4) if r0 > 0 else None
+
+            return {
+                "id": "faroswap_v2",
+                "name": "FaroSwap V2 AMM",
+                "network": "Pharos Mainnet",
+                "chain_id": 1672,
+                "type": "AMM_CONSTANT_PRODUCT",
+                "router_address": router_addr,
+                "factory_address": factory_addr,
+                "pair_address": pair_address,
+                "base_token_address": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+                "quote_token_address": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+                "base_decimals": 18,
+                "quote_decimals": 6,
+                "fee_ratio": fee_ratio,
+                "fee_bps": fee_bps,
+                "gas_units": gas_units,
+                "spot_price": spot_price,
+                "reserve_base": r0,
+                "reserve_quote": r1,
+                "block_number": block_num,
+                "timestamp_epoch": time.time(),
+                "is_executable_pool": True,
+                "is_available": (spot_price is not None and spot_price > 0),
+                "status": "HEALTHY_LOW_DEPTH" if (spot_price is not None and spot_price > 0) else "UNAVAILABLE_NO_RESERVES",
+                "bytecode_verified": True
+            }
         else:
             # Pair has no verified liquidity pool on FaroSwap
-            if oracle_price is None:
-                oracle_data = query_chainlink_feed(pair_name, rpc_url, timeout=timeout)
-                oracle_price = oracle_data.get("reference_price_usd") or 1000.0
-            spot_price = round(oracle_price * 0.9992, 4)
-
-        return {
-            "id": "faroswap_v2",
-            "name": "FaroSwap V2 AMM",
-            "network": "Pharos Mainnet",
-            "chain_id": 1672,
-            "type": "AMM_CONSTANT_PRODUCT",
-            "router_address": router_addr,
-            "factory_address": factory_addr,
-            "pair_address": pair_address,
-            "fee_ratio": fee_ratio,
-            "fee_bps": fee_bps,
-            "gas_units": gas_units,
-            "spot_price": spot_price,
-            "reserve_base": r0,
-            "reserve_quote": r1,
-            "block_number": block_num,
-            "timestamp_epoch": time.time(),
-            "is_executable_pool": True,
-            "is_available": True,
-            "status": "HEALTHY",
-            "bytecode_verified": True
-        }
+            return {
+                "id": "faroswap_v2",
+                "name": "FaroSwap V2 AMM",
+                "network": "Pharos Mainnet",
+                "chain_id": 1672,
+                "type": "AMM_CONSTANT_PRODUCT",
+                "router_address": router_addr,
+                "factory_address": factory_addr,
+                "pair_address": None,
+                "base_token_address": None,
+                "quote_token_address": None,
+                "base_decimals": None,
+                "quote_decimals": None,
+                "fee_ratio": fee_ratio,
+                "fee_bps": fee_bps,
+                "gas_units": gas_units,
+                "spot_price": None,
+                "reserve_base": 0.0,
+                "reserve_quote": 0.0,
+                "block_number": block_num,
+                "timestamp_epoch": time.time(),
+                "is_executable_pool": False,
+                "is_available": False,
+                "status": "QUOTE_UNAVAILABLE_NO_POOL",
+                "bytecode_verified": True,
+                "message": f"No verified pool deployed on FaroSwap V2 for asset pair {pair_name}."
+            }
     except Exception as e:
         return {
             "id": "faroswap_v2",
@@ -390,6 +416,9 @@ def query_faroswap_v2_venue(
             "network": "Pharos Mainnet",
             "chain_id": 1672,
             "router_address": router_addr,
+            "spot_price": None,
+            "reserve_base": 0.0,
+            "reserve_quote": 0.0,
             "is_available": False,
             "status": "UNAVAILABLE_ERROR",
             "error": str(e)
@@ -480,6 +509,10 @@ def scan_pair_venues(
     freshness = max(0.0, now_ts - updated_at) if updated_at and updated_at > 0 else 0.0
     is_stale = freshness > 86400 or (not chainlink_data.get("is_available", False))
 
+    dodo_avail = dodo_data.get("is_available", False) and (dodo_data.get("spot_price") is not None)
+    faro_avail = faroswap_data.get("is_available", False) and (faroswap_data.get("spot_price") is not None)
+    cross_comparable = dodo_avail and faro_avail
+
     return {
         "scan_id": scan_id,
         "pair": pair_name,
@@ -488,6 +521,8 @@ def scan_pair_venues(
         "data_freshness_seconds": round(freshness, 1),
         "is_stale": is_stale,
         "is_test_fixture": False,
+        "cross_venue_comparable": cross_comparable,
+        "comparison_status": "DUAL_VENUE_SAME_SCAN_ACTIVE" if cross_comparable else "CROSS_VENUE_COMPARISON_BLOCKED",
         "venues": {
             "venue_a": dodo_data,
             "venue_b": faroswap_data,

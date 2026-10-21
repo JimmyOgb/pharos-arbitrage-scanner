@@ -14,7 +14,8 @@ def test_live_atlantic_rpc_connectivity():
     res = fetch_live_gas_price(rpc_url=DEFAULT_ATLANTIC_RPC)
     if not res.get("is_live", False):
         pytest.skip(f"Live Atlantic RPC currently unreachable: {res.get('error')}")
-    assert res["source"] == "LIVE_ATLANTIC_RPC"
+    assert res["source"] in ("LIVE_ATLANTIC_RPC", "ATLANTIC_TESTNET_DIAGNOSTIC_RPC")
+    assert res["chain_id"] == 688689
     assert res["gas_price_gwei"] > 0
     assert res["block_number"] > 30000000
 

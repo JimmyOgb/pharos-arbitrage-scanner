@@ -34,7 +34,8 @@ def test_cli_scan_json():
     assert len(data) == 1
     assert data[0]["pair"] == "BTC/USD"
     assert data[0]["data_mode"] == "PRODUCTION_LIVE_AUDIT"
-    assert data[0]["decision"]["status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+    assert data[0]["decision"]["is_eligible"] is False
+    assert data[0]["decision"]["status"] in ("CROSS_VENUE_COMPARISON_BLOCKED", "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY")
 
 
 def test_cli_demo_suite():

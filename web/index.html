@@ -82,16 +82,16 @@
 
       <!-- Live Network Indicators -->
       <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs">
-          <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
-          <span class="text-slate-400">Atlantic Node:</span>
-          <span class="text-white font-mono font-medium" id="networkBadge">#688689</span>
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs font-mono">
+          <div class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+          <span class="text-slate-400">Mainnet (1672):</span>
+          <span class="text-white font-bold" id="mainnetGasDisplay">10.0 Gwei</span>
         </div>
 
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-xs font-mono">
           <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
-          <span class="text-slate-400">Gas:</span>
-          <span class="text-amber-300 font-bold" id="liveGasDisplay">10.0 Gwei</span>
+          <span class="text-slate-400">Atlantic (688689):</span>
+          <span class="text-amber-300 font-bold" id="atlanticGasDisplay">10.0 Gwei</span>
         </div>
 
         <button id="btnManualRefresh" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 text-xs font-medium transition">
@@ -219,8 +219,9 @@
             <div class="text-amber-300 font-bold mt-1" id="dodoFeeDisplay">15 bps (0.15%)</div>
           </div>
           <div class="p-2.5 rounded bg-dark-850 border border-dark-700">
-            <div class="text-slate-400 text-[10px] uppercase">Live Quoted Price (PROS)</div>
-            <div class="text-cyan-400 font-bold mt-1" id="dodoSpotDisplay">$0.6012 USD</div>
+            <div class="text-slate-400 text-[10px] uppercase">Live Quote Status (Mainnet)</div>
+            <div class="text-amber-400 font-bold mt-1" id="dodoSpotDisplay">QUOTE UNAVAILABLE</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">No verified pool on Mainnet</div>
           </div>
         </div>
       </div>
@@ -257,6 +258,7 @@
           <div class="p-2.5 rounded bg-dark-850 border border-dark-700">
             <div class="text-slate-400 text-[10px] uppercase">Live Pool Spot (Pair 2)</div>
             <div class="text-purple-400 font-bold mt-1" id="faroSpotDisplay">$0.5994 USD</div>
+            <div class="text-[10px] text-rose-400 mt-0.5">Dust depth: $0.28 USDC</div>
           </div>
         </div>
       </div>
@@ -311,19 +313,19 @@
     </div>
 
     <!-- Section 4: Pure Mathematical Constant-Product AMM Sandbox (Unit Test Engine) -->
-    <div class="glass-card rounded-xl p-5 border border-dark-700 space-y-4">
+    <div class="glass-card rounded-xl p-5 border border-amber-500/40 bg-amber-950/10 space-y-4">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-dark-700">
         <div>
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 text-[10px] font-mono border border-cyan-500/30 font-bold">
-              MATHEMATICAL ENGINE
+            <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-mono border border-amber-500/40 font-bold">
+              OFFLINE TEST FIXTURE SANDBOX (SIMULATION ONLY)
             </span>
             <h2 class="text-sm font-bold text-white uppercase tracking-wider font-mono">
               Constant-Product Slippage ($x \cdot y = k$) & Waterfall Model
             </h2>
           </div>
-          <p class="text-xs text-slate-400 mt-1">
-            Notice: Validates non-linear price impact, LP fee netting, and gas conversion formulas using deterministic unit test fixtures.
+          <p class="text-xs text-amber-300/80 mt-1 leading-relaxed">
+            IMPORTANT NOTICE: The mathematical model below evaluates constant-product formulas ($x \cdot y = k$) on isolated deterministic unit test fixtures. It is strictly offline and decoupled from live on-chain scanning. Calculations here never represent live liquidity, opportunities, or executable arbitrage.
           </p>
         </div>
 
@@ -346,23 +348,23 @@
         <div>
           <div class="flex justify-between items-center mb-1.5">
             <label class="text-slate-400 font-medium">Test Order Volume (USD)</label>
-            <span class="text-cyan-400 font-mono font-bold" id="displayVolume">$2,500</span>
+            <span class="text-amber-300 font-mono font-bold" id="displayVolume">$2,500</span>
           </div>
-          <input type="range" id="inputVolume" min="500" max="25000" step="500" value="2500" class="w-full accent-cyan-400 cursor-pointer">
+          <input type="range" id="inputVolume" min="500" max="25000" step="500" value="2500" class="w-full accent-amber-400 cursor-pointer">
         </div>
 
         <div>
           <label class="block text-slate-400 font-medium mb-1.5">Min Net Profit Threshold</label>
           <div class="relative">
             <span class="absolute left-3 top-2 text-slate-500 font-mono">$</span>
-            <input type="number" id="inputMinProfit" value="5.0" step="1.0" min="0" class="w-full bg-dark-800 border border-dark-700 rounded-lg pl-7 pr-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500">
+            <input type="number" id="inputMinProfit" value="5.0" step="1.0" min="0" class="w-full bg-dark-800 border border-dark-700 rounded-lg pl-7 pr-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
           </div>
         </div>
 
         <div>
           <label class="block text-slate-400 font-medium mb-1.5">Max Price Impact Limit</label>
           <div class="relative">
-            <input type="number" id="inputMaxSlippage" value="150" step="10" min="10" max="500" class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-cyan-500">
+            <input type="number" id="inputMaxSlippage" value="150" step="10" min="10" max="500" class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-500">
             <span class="absolute right-3 top-2 text-slate-500 font-mono text-xs">bps</span>
           </div>
         </div>
@@ -371,8 +373,8 @@
       <!-- Waterfall Box -->
       <div class="p-4 rounded-xl bg-dark-850/80 border border-dark-700 space-y-3">
         <div class="flex items-center justify-between text-xs font-mono">
-          <span class="text-slate-300 font-bold">Mathematical Waterfall Deduction Breakdown</span>
-          <span id="detailStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+          <span class="text-slate-300 font-bold">Mathematical Waterfall Deduction Breakdown (Offline Test Fixture)</span>
+          <span id="detailStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
             TEST_FIXTURE_THRESHOLD_MET
           </span>
         </div>
@@ -397,8 +399,8 @@
         </div>
 
         <div class="p-3 rounded-lg bg-dark-900 border border-dark-700 text-xs font-mono text-slate-300 flex items-center justify-between">
-          <span>Net Mathematical Result: <strong class="text-emerald-400" id="wfNetProfit">+$23.79 (+0.95%)</strong></span>
-          <span class="text-[10px] text-slate-500 font-bold">Live Execution: FAIL-CLOSED LOCKED</span>
+          <span>Simulation Result: <strong class="text-amber-300" id="wfNetProfit">+$23.79 (+0.95%)</strong></span>
+          <span class="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">TEST FIXTURE ONLY · DISCONNECTED FROM LIVE SCANNER</span>
         </div>
       </div>
     </div>
@@ -424,17 +426,21 @@
   <!-- Application Logic -->
   <script>
     const APP_CONFIG = {
-      atlanticChainId: 688689,
       pharosChainId: 1672,
-      atlanticRpc: 'https://atlantic.dplabs-internal.com',
+      atlanticChainId: 688689,
       pharosRpc: 'https://rpc.pharos.xyz',
+      atlanticRpc: 'https://atlantic.dplabs-internal.com',
       phrsPriceUsd: 2.50
     };
 
     let state = {
-      liveGasGwei: 10.0,
-      blockNumber: 31610751,
+      mainnetGasGwei: 10.0,
+      mainnetBlockNumber: 20827925,
+      atlanticGasGwei: 10.0,
+      atlanticBlockNumber: 31610751,
       faroswapPairsCount: 111,
+      faroswapSpot: 0.5994,
+      dodoSpot: null,
       tradeVolume: 2500,
       minProfit: 5.0,
       maxSlippageBps: 150,
@@ -444,9 +450,9 @@
         'PROS/USD': 0.6289
       },
       scanHistory: [],
-      pools: {
-        venue_a: { name: 'Test Venue A', reserveBase: 200000.0, reserveQuote: 500000.0, feeRatio: 0.003, gas: 140000 },
-        venue_b: { name: 'Test Venue B', reserveBase: 200000.0, reserveQuote: 512000.0, feeRatio: 0.0025, gas: 155000 }
+      fixturePools: {
+        venue_a: { name: 'Test Venue A (Fixture)', reserveBase: 200000.0, reserveQuote: 500000.0, feeRatio: 0.003, gas: 140000 },
+        venue_b: { name: 'Test Venue B (Fixture)', reserveBase: 200000.0, reserveQuote: 512000.0, feeRatio: 0.0025, gas: 155000 }
       }
     };
 
@@ -472,7 +478,7 @@
     }
 
     async function pollLiveNetwork() {
-      // 1. Atlantic Testnet (Chain ID: 688689)
+      // 1. Atlantic Testnet Diagnostic Gas (Chain ID: 688689)
       try {
         const response = await fetch(APP_CONFIG.atlanticRpc, {
           method: 'POST',
@@ -482,8 +488,9 @@
         const data = await response.json();
         if (data.result) {
           const gasWei = parseInt(data.result, 16);
-          state.liveGasGwei = gasWei / 1e9;
-          document.getElementById('liveGasDisplay').innerText = `${state.liveGasGwei.toFixed(1)} Gwei`;
+          state.atlanticGasGwei = gasWei / 1e9;
+          const el = document.getElementById('atlanticGasDisplay');
+          if (el) el.innerText = `${state.atlanticGasGwei.toFixed(1)} Gwei`;
         }
 
         const bResp = await fetch(APP_CONFIG.atlanticRpc, {
@@ -493,14 +500,40 @@
         });
         const bData = await bResp.json();
         if (bData.result) {
-          state.blockNumber = parseInt(bData.result, 16);
-          document.getElementById('networkGasStatus').innerText = `${state.liveGasGwei.toFixed(1)} Gwei · Block #${state.blockNumber.toLocaleString()}`;
+          state.atlanticBlockNumber = parseInt(bData.result, 16);
         }
       } catch (err) {
         console.warn('Atlantic Testnet RPC notice:', err);
       }
 
-      // 2. Chainlink Push Oracle Cache on Pharos RPC (Chain ID: 1672)
+      // 2. Pharos Mainnet Gas & Block (Chain ID: 1672)
+      try {
+        const mGasResp = await fetch(APP_CONFIG.pharosRpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 10, method: 'eth_gasPrice', params: [] })
+        });
+        const mGasData = await mGasResp.json();
+        if (mGasData.result) {
+          state.mainnetGasGwei = parseInt(mGasData.result, 16) / 1e9;
+          const el = document.getElementById('mainnetGasDisplay');
+          if (el) el.innerText = `${state.mainnetGasGwei.toFixed(1)} Gwei`;
+        }
+
+        const mBlockResp = await fetch(APP_CONFIG.pharosRpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 11, method: 'eth_blockNumber', params: [] })
+        });
+        const mBlockData = await mBlockResp.json();
+        if (mBlockData.result) {
+          state.mainnetBlockNumber = parseInt(mBlockData.result, 16);
+        }
+      } catch (err) {
+        console.warn('Pharos Mainnet gas query notice:', err);
+      }
+
+      // 3. Chainlink Push Oracle Cache on Pharos Mainnet (Chain ID: 1672)
       try {
         const cache = '0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8';
         const feeds = [
@@ -521,11 +554,12 @@
             const raw = BigInt(res.result);
             const price = Number(raw) / (10 ** f.decimals);
             state.oraclePrices[f.pair] = price;
-            document.getElementById(f.el).innerText = `${f.prefix}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+            const el = document.getElementById(f.el);
+            if (el) el.innerText = `${f.prefix}${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
           }
         }
 
-        // 3. FaroSwap Factory & Primary Pair (WPROS/USDC) on Pharos Mainnet (Chain ID: 1672)
+        // 4. FaroSwap Factory & Primary Pair (WPROS/USDC) on Pharos Mainnet (Chain ID: 1672)
         const factory = '0x18fab7d7027e9fb33fa90ca607439449209f7b09';
         const fResp = await fetch(APP_CONFIG.pharosRpc, {
           method: 'POST',
@@ -535,7 +569,8 @@
         const fData = await fResp.json();
         if (fData.result) {
           state.faroswapPairsCount = parseInt(fData.result, 16);
-          document.getElementById('faroswapPairsCount').innerText = `${state.faroswapPairsCount} Pairs Deployed`;
+          const el = document.getElementById('faroswapPairsCount');
+          if (el) el.innerText = `${state.faroswapPairsCount} Pairs Deployed`;
         }
 
         // Query FaroSwap Pair 2 (WPROS/USDC reserves)
@@ -551,11 +586,12 @@
           const r1 = Number(BigInt('0x' + p2Data.result.substring(66, 130))) / 1e6;
           if (r0 > 0) {
             state.faroswapSpot = r1 / r0;
-            document.getElementById('faroSpotDisplay').innerText = `$${state.faroswapSpot.toFixed(4)} USD`;
+            const el = document.getElementById('faroSpotDisplay');
+            if (el) el.innerText = `$${state.faroswapSpot.toFixed(4)} USD`;
           }
         }
 
-        // 4. DODO V2 Router on Pharos Mainnet (Chain ID: 1672)
+        // 5. DODO V2 Router on Pharos Mainnet (Chain ID: 1672)
         const dodoRouter = '0xA5cA5Fbe34e444F366B373170541ec6902b0F75c';
         const dodoResp = await fetch(APP_CONFIG.pharosRpc, {
           method: 'POST',
@@ -566,20 +602,21 @@
         if (dodoData.result && dodoData.result.length >= 66) {
           const feeRate = Number(BigInt(dodoData.result)) / 1e18;
           const feeBps = Math.round(feeRate * 10000);
-          document.getElementById('dodoFeeDisplay').innerText = `${feeBps} bps (${(feeRate * 100).toFixed(2)}%)`;
+          const el = document.getElementById('dodoFeeDisplay');
+          if (el) el.innerText = `${feeBps} bps (${(feeRate * 100).toFixed(2)}%)`;
         }
-        // DODO PMM spot rate for PROS/USD
-        const prosRef = state.oraclePrices['PROS/USD'] || 0.60;
-        state.dodoSpot = prosRef * 1.0025;
-        document.getElementById('dodoSpotDisplay').innerText = `$${state.dodoSpot.toFixed(4)} USD`;
+        // DODO V2 has no registered on-chain pool contract for PROS/USD on Mainnet
+        state.dodoSpot = null;
+        const dodoSpotEl = document.getElementById('dodoSpotDisplay');
+        if (dodoSpotEl) dodoSpotEl.innerText = 'QUOTE UNAVAILABLE';
       } catch (err) {
         console.warn('Pharos Mainnet RPC notice:', err);
       }
     }
 
     function evaluateFixtureMath() {
-      const va = state.pools.venue_a;
-      const vb = state.pools.venue_b;
+      const va = state.fixturePools.venue_a;
+      const vb = state.fixturePools.venue_b;
 
       const vaSpot = va.reserveQuote / va.reserveBase;
       const vbSpot = vb.reserveQuote / vb.reserveBase;
@@ -592,7 +629,7 @@
       const grossSpreadUsd = state.tradeVolume * (grossSpreadPct / 100);
 
       const gasUnits = buyVenue.pool.gas + sellVenue.pool.gas;
-      const gasCostPhrs = gasUnits * (state.liveGasGwei * 1e-9);
+      const gasCostPhrs = gasUnits * (state.mainnetGasGwei * 1e-9);
       const gasCostUsd = gasCostPhrs * APP_CONFIG.phrsPriceUsd;
 
       if (grossSpreadUnit <= 0) {
@@ -631,39 +668,41 @@
 
     async function addScanRecord(pair) {
       const oracle = state.oraclePrices[pair] || 0.60;
-      let dodoPrice = state.dodoSpot || (oracle * 1.0025);
-      let faroPrice = state.faroswapSpot || (oracle * 0.9995);
+      let dodoPriceStr = 'QUOTE UNAVAILABLE';
+      let faroPriceStr = 'QUOTE UNAVAILABLE';
+      let grossSpreadStr = 'BLOCKED (MISSING QUOTE)';
+      let waterfallFrictionStr = 'N/A (LOCKED)';
+      let netProfitStr = '$0.00';
+      let statusStr = 'CROSS_VENUE_COMPARISON_BLOCKED';
 
-      if (pair !== 'PROS/USD') {
-        dodoPrice = oracle * 1.0015;
-        faroPrice = oracle * 0.9985;
+      if (pair === 'PROS/USD' || pair === 'WPROS/USDC') {
+        if (state.faroswapSpot) {
+          faroPriceStr = `$${state.faroswapSpot.toFixed(4)} USD (Pair 2)`;
+        }
+        dodoPriceStr = 'QUOTE UNAVAILABLE (NO POOL ON MAINNET)';
+        grossSpreadStr = 'BLOCKED (DODO QUOTE UNAVAILABLE)';
+        waterfallFrictionStr = 'N/A (EXECUTION LOCKED)';
+        netProfitStr = '$0.00';
+        statusStr = 'FAIL-CLOSED: INSUFFICIENT DEPTH (< $0.29)';
+      } else {
+        dodoPriceStr = 'QUOTE UNAVAILABLE (NO POOL ON MAINNET)';
+        faroPriceStr = 'QUOTE UNAVAILABLE (NO POOL ON MAINNET)';
+        grossSpreadStr = 'BLOCKED (NO DEX POOLS)';
+        waterfallFrictionStr = 'N/A (EXECUTION LOCKED)';
+        netProfitStr = '$0.00';
+        statusStr = 'QUOTE UNAVAILABLE (NO DEX POOLS)';
       }
-
-      const buyPrice = Math.min(dodoPrice, faroPrice);
-      const sellPrice = Math.max(dodoPrice, faroPrice);
-      const grossSpreadUnit = sellPrice - buyPrice;
-      const grossSpreadPct = (grossSpreadUnit / buyPrice) * 100;
-      const grossSpreadUsd = state.tradeVolume * (grossSpreadPct / 100);
-
-      // Cost deductions
-      const buyFee = state.tradeVolume * 0.0015; // DODO 15 bps
-      const sellFee = state.tradeVolume * 0.003; // FaroSwap 30 bps
-      const slippage = state.tradeVolume * 0.001;
-      const gasUnits = 310000;
-      const gasCost = gasUnits * (state.liveGasGwei * 1e-9) * APP_CONFIG.phrsPriceUsd;
-      const totalFriction = buyFee + sellFee + slippage + gasCost;
-      const netProfit = grossSpreadUsd - totalFriction;
 
       const record = {
         time: new Date().toLocaleTimeString(),
         pair: pair,
-        dodoPrice: `$${dodoPrice.toFixed(4)}`,
-        faroPrice: `$${faroPrice.toFixed(4)}`,
-        grossSpread: `+${grossSpreadPct.toFixed(2)}% (+$${grossSpreadUsd.toFixed(2)})`,
-        waterfallFriction: `-$${totalFriction.toFixed(2)}`,
-        netProfit: `${netProfit >= 0 ? '+$' : '-$'}${Math.abs(netProfit).toFixed(2)}`,
-        oracleBenchmark: `$${oracle.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`,
-        status: 'INSUFFICIENT_LIQUIDITY_DEPTH (LOCKED)'
+        dodoPrice: dodoPriceStr,
+        faroPrice: faroPriceStr,
+        grossSpread: grossSpreadStr,
+        waterfallFriction: waterfallFrictionStr,
+        netProfit: netProfitStr,
+        oracleBenchmark: `$${oracle.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} (Chainlink Benchmark)`,
+        status: statusStr
       };
 
       state.scanHistory.unshift(record);
@@ -674,21 +713,21 @@
     function renderScanHistory() {
       const tbody = document.getElementById('scanHistoryBody');
       if (state.scanHistory.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" class="py-4 px-3 text-center text-slate-500">No scans executed yet. Click "Run Dual-Venue Scan" above.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="py-6 px-3 text-center text-slate-500 font-mono">No scans executed yet. Select a pair and click "Run Dual-Venue Scan" above.</td></tr>`;
         return;
       }
       tbody.innerHTML = state.scanHistory.map(r => `
         <tr class="hover:bg-dark-800/50 transition">
           <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px]">${r.time}</td>
           <td class="py-2.5 px-3 font-bold text-white font-mono">${r.pair}</td>
-          <td class="py-2.5 px-3 text-cyan-300 font-mono">${r.dodoPrice}</td>
-          <td class="py-2.5 px-3 text-purple-300 font-mono">${r.faroPrice}</td>
-          <td class="py-2.5 px-3 text-emerald-400 font-bold font-mono">${r.grossSpread}</td>
-          <td class="py-2.5 px-3 text-rose-400 font-mono">${r.waterfallFriction}</td>
-          <td class="py-2.5 px-3 font-bold font-mono ${r.netProfit.startsWith('+') ? 'text-emerald-400' : 'text-amber-400'}">${r.netProfit}</td>
-          <td class="py-2.5 px-3 text-slate-400 font-mono">${r.oracleBenchmark}</td>
+          <td class="py-2.5 px-3 ${r.dodoPrice.includes('UNAVAILABLE') ? 'text-amber-400' : 'text-cyan-300'} font-mono">${r.dodoPrice}</td>
+          <td class="py-2.5 px-3 ${r.faroPrice.includes('UNAVAILABLE') ? 'text-amber-400' : 'text-purple-300'} font-mono">${r.faroPrice}</td>
+          <td class="py-2.5 px-3 ${r.grossSpread.startsWith('+') ? 'text-emerald-400' : 'text-slate-400'} font-bold font-mono">${r.grossSpread}</td>
+          <td class="py-2.5 px-3 text-slate-400 font-mono">${r.waterfallFriction}</td>
+          <td class="py-2.5 px-3 font-bold font-mono text-slate-400">${r.netProfit}</td>
+          <td class="py-2.5 px-3 text-cyan-300 font-mono">${r.oracleBenchmark}</td>
           <td class="py-2.5 px-3">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
               ${r.status}
             </span>
           </td>
@@ -711,21 +750,21 @@
         const sc = e.currentTarget.getAttribute('data-scenario');
         if (sc === 'wide_spread') {
           state.tradeVolume = 2500;
-          state.pools = {
-            venue_a: { name: 'Test Venue A', reserveBase: 200000.0, reserveQuote: 500000.0, feeRatio: 0.003, gas: 140000 },
-            venue_b: { name: 'Test Venue B', reserveBase: 200000.0, reserveQuote: 512000.0, feeRatio: 0.0025, gas: 155000 }
+          state.fixturePools = {
+            venue_a: { name: 'Test Venue A (Fixture)', reserveBase: 200000.0, reserveQuote: 500000.0, feeRatio: 0.003, gas: 140000 },
+            venue_b: { name: 'Test Venue B (Fixture)', reserveBase: 200000.0, reserveQuote: 512000.0, feeRatio: 0.0025, gas: 155000 }
           };
         } else if (sc === 'slippage_eroded') {
           state.tradeVolume = 20000;
-          state.pools = {
-            venue_a: { name: 'Test Venue A', reserveBase: 10000.0, reserveQuote: 25000.0, feeRatio: 0.003, gas: 140000 },
-            venue_b: { name: 'Test Venue B', reserveBase: 10000.0, reserveQuote: 25200.0, feeRatio: 0.0025, gas: 155000 }
+          state.fixturePools = {
+            venue_a: { name: 'Test Venue A (Fixture)', reserveBase: 10000.0, reserveQuote: 25000.0, feeRatio: 0.003, gas: 140000 },
+            venue_b: { name: 'Test Venue B (Fixture)', reserveBase: 10000.0, reserveQuote: 25200.0, feeRatio: 0.0025, gas: 155000 }
           };
         } else if (sc === 'inverted_spread') {
           state.tradeVolume = 2500;
-          state.pools = {
-            venue_a: { name: 'Test Venue A', reserveBase: 100000.0, reserveQuote: 255000.0, feeRatio: 0.003, gas: 140000 },
-            venue_b: { name: 'Test Venue B', reserveBase: 100000.0, reserveQuote: 250000.0, feeRatio: 0.0025, gas: 155000 }
+          state.fixturePools = {
+            venue_a: { name: 'Test Venue A (Fixture)', reserveBase: 100000.0, reserveQuote: 255000.0, feeRatio: 0.003, gas: 140000 },
+            venue_b: { name: 'Test Venue B (Fixture)', reserveBase: 100000.0, reserveQuote: 250000.0, feeRatio: 0.0025, gas: 155000 }
           };
         }
         document.getElementById('inputVolume').value = state.tradeVolume;
@@ -766,8 +805,7 @@
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
       await pollLiveNetwork();
-      addScanRecord('BTC/USD');
-      addScanRecord('ETH/USD');
+      renderScanHistory();
       renderUI();
       setInterval(pollLiveNetwork, 12000);
     });

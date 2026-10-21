@@ -12,8 +12,8 @@ def test_live_evaluator_fails_closed():
     res = evaluate_arbitrage("BTC/USD", trade_volume_usd=5000.0)
     assert res["data_mode"] == "PRODUCTION_LIVE_AUDIT"
     assert res["decision"]["is_eligible"] is False
-    assert res["decision"]["status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
-    assert "no verified liquidity" in res["decision"]["reason"].lower()
+    assert res["decision"]["status"] in ("CROSS_VENUE_COMPARISON_BLOCKED", "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY")
+    assert any(term in res["decision"]["reason"].lower() for term in ("blocked", "unavailable", "no verified liquidity"))
 
 
 def test_mathematical_model_profitable():
@@ -137,7 +137,8 @@ def test_multi_pair_batch_evaluation():
         res = evaluate_arbitrage(p, trade_volume_usd=1000.0)
         assert res["pair"] == p
         assert res["data_mode"] == "PRODUCTION_LIVE_AUDIT"
-        assert res["decision"]["status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+        assert res["decision"]["is_eligible"] is False
+        assert res["decision"]["status"] in ("CROSS_VENUE_COMPARISON_BLOCKED", "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY")
 
 
 def test_dual_venue_spread_and_waterfall():

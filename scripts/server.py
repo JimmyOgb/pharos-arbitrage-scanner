@@ -45,7 +45,19 @@ class ScannerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # API: /api/live-gas
         if path == "/api/live-gas":
-            gas_info = fetch_live_gas_price()
+            gas_info = fetch_live_gas_price(chain_id=1672)
+            self._send_json(gas_info)
+            return
+
+        # API: /api/mainnet-gas
+        if path == "/api/mainnet-gas":
+            gas_info = fetch_live_gas_price(chain_id=1672)
+            self._send_json(gas_info)
+            return
+
+        # API: /api/atlantic-gas
+        if path == "/api/atlantic-gas":
+            gas_info = fetch_live_gas_price(chain_id=688689)
             self._send_json(gas_info)
             return
 

@@ -42,7 +42,7 @@ def evaluate_arbitrage(
 
     # Fetch gas details if not supplied
     if not live_gas_info:
-        live_gas_info = fetch_live_gas_price()
+        live_gas_info = fetch_live_gas_price(chain_id=1672)
 
     venues_snapshot = scan_pair_venues(pair_name, custom_reserves)
 
@@ -53,13 +53,19 @@ def evaluate_arbitrage(
         chainlink_venue = venues_snapshot["venues"].get("chainlink_reference_oracle", {})
         ref_price = chainlink_venue.get("reference_price_usd")
 
-        # 1. Require both DEX venues to be available in the same scan
-        if not venue_a or not venue_b or not venue_a.get("is_available") or not venue_b.get("is_available"):
+        p_a = venue_a.get("spot_price") if venue_a else None
+        p_b = venue_b.get("spot_price") if venue_b else None
+
+        # 1. Require both DEX venues to independently provide valid quotes in the same scan
+        if not venue_a or not venue_b or not venue_a.get("is_available") or not venue_b.get("is_available") or p_a is None or p_b is None:
             missing = []
-            if not venue_a or not venue_a.get("is_available"):
-                missing.append("DODO V2")
-            if not venue_b or not venue_b.get("is_available"):
-                missing.append("FaroSwap V2")
+            if not venue_a or not venue_a.get("is_available") or p_a is None:
+                status_a = venue_a.get("status", "UNAVAILABLE") if venue_a else "NOT_FOUND"
+                missing.append(f"DODO V2 ({status_a})")
+            if not venue_b or not venue_b.get("is_available") or p_b is None:
+                status_b = venue_b.get("status", "UNAVAILABLE") if venue_b else "NOT_FOUND"
+                missing.append(f"FaroSwap V2 ({status_b})")
+
             return {
                 "timestamp": venues_snapshot["timestamp"],
                 "scan_id": venues_snapshot.get("scan_id"),
@@ -76,9 +82,9 @@ def evaluate_arbitrage(
                 "gas_details": live_gas_info,
                 "waterfall": None,
                 "decision": {
-                    "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
+                    "status": "CROSS_VENUE_COMPARISON_BLOCKED",
                     "is_eligible": False,
-                    "reason": f"Live arbitrage unavailable: Dual-venue scan required. Missing/unreachable venues: {', '.join(missing)}."
+                    "reason": f"Cross-venue comparison blocked for {pair_name}: Both venues must independently provide verified quotes for the same asset pair. Missing/unsupported venues: {', '.join(missing)}."
                 }
             }
 
@@ -119,8 +125,35 @@ def evaluate_arbitrage(
 
         # Gas costs
         gas_units_total = buy_venue.get("gas_units", 165000) + sell_venue.get("gas_units", 145000)
-        gas_gwei = live_gas_info.get("gas_price_gwei") if live_gas_info.get("gas_price_gwei") is not None else 10.0
-        gas_cost_data = calculate_gas_cost_usd(gas_units_total, gas_gwei)
+        gas_gwei = live_gas_info.get("gas_price_gwei")
+        if gas_gwei is None:
+            return {
+                "timestamp": venues_snapshot["timestamp"],
+                "scan_id": venues_snapshot.get("scan_id"),
+                "pair": pair_name,
+                "data_mode": "PRODUCTION_LIVE_AUDIT",
+                "comparison_mode": "DUAL_VENUE_SAME_SCAN",
+                "trade_volume_usd": trade_volume_usd,
+                "min_net_profit_usd": min_net_profit_usd,
+                "max_slippage_bps": max_slippage_bps,
+                "reference_oracle_price": ref_price,
+                "oracle_venue": chainlink_venue,
+                "venue_a": venue_a,
+                "venue_b": venue_b,
+                "gas_details": live_gas_info,
+                "waterfall": None,
+                "decision": {
+                    "status": "GAS_PRICE_UNAVAILABLE",
+                    "is_eligible": False,
+                    "reason": "Execution locked fail-closed: Verified Pharos Mainnet gas price is currently unreachable."
+                }
+            }
+
+        gas_cost_data = calculate_gas_cost_usd(
+            gas_units_total,
+            gas_gwei,
+            chain_id=live_gas_info.get("chain_id", 1672)
+        )
 
         waterfall = compute_net_waterfall(
             trade_volume_usd=trade_volume_usd,

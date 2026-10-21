@@ -58,22 +58,29 @@ def format_live_audit_summary(eval_res: Dict[str, Any]) -> str:
 
     status_icon = f"[{dec.get('status')}]"
 
+    va_price_str = f"${va.get('spot_price'):,.4f} USD" if va.get("spot_price") is not None else "QUOTE UNAVAILABLE"
+    vb_price_str = f"${vb.get('spot_price'):,.4f} USD" if vb.get("spot_price") is not None else "QUOTE UNAVAILABLE"
+
     out = []
     out.append(f"\n========================================================================")
     out.append(f"Pair: {pair} | Mode: {eval_res.get('data_mode')} | Status: {status_icon}")
     out.append(f"========================================================================")
-    out.append(f"  [Venue 1: DODO V2]       : ${va.get('spot_price', 0):,.4f} USD | Fee: {va.get('fee_bps', 15)} bps | Router: {va.get('router_address')}")
-    out.append(f"  [Venue 2: FaroSwap V2]   : ${vb.get('spot_price', 0):,.4f} USD | Fee: {vb.get('fee_bps', 30)} bps | Pair: {vb.get('pair_address')}")
+    out.append(f"  [Venue 1: DODO V2]       : {va_price_str} | Fee: {va.get('fee_bps', 15)} bps | Router: {va.get('router_address')}")
+    out.append(f"  [Venue 2: FaroSwap V2]   : {vb_price_str} | Fee: {vb.get('fee_bps', 30)} bps | Pair: {vb.get('pair_address') or 'None'}")
     if oracle_price is not None:
         out.append(f"  [Reference Oracle]       : ${oracle_price:,.4f} USD (Chainlink Push Cache: {oracle.get('contract_address')})")
     out.append(f"  ----------------------------------------------------------------------")
-    out.append(f"  Same-Scan Direction      : Buy {buy.get('name')} (${buy.get('spot_price', 0):,.4f}) -> Sell {sell.get('name')} (${sell.get('spot_price', 0):,.4f})")
-    out.append(f"  Gross Spread             : {spread.get('spread_pct', 0):.2f}% (${spread.get('per_unit_usd', 0):.4f}/unit | ${spread.get('gross_spread_usd', 0):,.2f} on ${eval_res.get('trade_volume_usd', 0):,.2f})")
-    out.append(f"  Waterfall - Buy Fee      : -${waterfall.get('buy_fee_usd', 0):.2f}")
-    out.append(f"  Waterfall - Sell Fee     : -${waterfall.get('sell_fee_usd', 0):.2f}")
-    out.append(f"  Waterfall - Slippage     : -${waterfall.get('total_slippage_usd', 0):.2f} (Buy: ${waterfall.get('buy_slippage_usd', 0):.2f}, Sell: ${waterfall.get('sell_slippage_usd', 0):.2f})")
-    out.append(f"  Waterfall - Network Gas  : -${waterfall.get('gas_cost_usd', 0):.4f} ({gas.get('gas_price_gwei')} Gwei | Block #{gas.get('block_number')})")
-    out.append(f"  Waterfall - Net Profit   : ${waterfall.get('net_profit_usd', 0):.2f} ({waterfall.get('net_profit_pct', 0):.2f}%)")
+    if waterfall:
+        out.append(f"  Same-Scan Direction      : Buy {buy.get('name')} (${buy.get('spot_price', 0):,.4f}) -> Sell {sell.get('name')} (${sell.get('spot_price', 0):,.4f})")
+        out.append(f"  Gross Spread             : {spread.get('spread_pct', 0):.2f}% (${spread.get('per_unit_usd', 0):.4f}/unit | ${spread.get('gross_spread_usd', 0):,.2f} on ${eval_res.get('trade_volume_usd', 0):,.2f})")
+        out.append(f"  Waterfall - Buy Fee      : -${waterfall.get('buy_fee_usd', 0):.2f}")
+        out.append(f"  Waterfall - Sell Fee     : -${waterfall.get('sell_fee_usd', 0):.2f}")
+        out.append(f"  Waterfall - Slippage     : -${waterfall.get('total_slippage_usd', 0):.2f} (Buy: ${waterfall.get('buy_slippage_usd', 0):.2f}, Sell: ${waterfall.get('sell_slippage_usd', 0):.2f})")
+        out.append(f"  Waterfall - Network Gas  : -${waterfall.get('gas_cost_usd', 0):.4f} ({gas.get('gas_price_gwei')} Gwei | Block #{gas.get('block_number')})")
+        out.append(f"  Waterfall - Net Profit   : ${waterfall.get('net_profit_usd', 0):.2f} ({waterfall.get('net_profit_pct', 0):.2f}%)")
+    else:
+        out.append(f"  Cross-Venue Comparison   : BLOCKED (Both venues must independently provide verified quotes)")
+        out.append(f"  Waterfall Friction       : N/A (Execution locked fail-closed)")
     out.append(f"  ----------------------------------------------------------------------")
     out.append(f"  Decision Gate Status     : {dec['status']} (is_eligible: {dec.get('is_eligible')})")
     out.append(f"  Gating Rationale         : {dec['reason']}")
