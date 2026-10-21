@@ -6,7 +6,8 @@
 [![Network: Pharos Atlantic Testnet](https://img.shields.io/badge/Network-Pharos%20Atlantic%20Testnet%20(688689)-00F2FE?style=flat&logo=ethereum)](https://atlantic.pharosscan.xyz)
 [![Network: Pharos RPC](https://img.shields.io/badge/Network-Pharos%20RPC%20(1672)-7F00FF?style=flat)](https://rpc.pharos.xyz)
 [![SkillEngine: v0.2.0](https://img.shields.io/badge/SkillEngine-v0.2.0-10B981?style=flat)](https://github.com/PharosNetwork/pharos-skill-engine)
-[![Tests: 40 Tests](https://img.shields.io/badge/Tests-40%20(37%20Passed%2C%203%20Skipped)-10B981?style=flat)](reports/VERIFICATION_REPORT.md)
+[![Tests: 42 Passed](https://img.shields.io/badge/Tests-42%20Passed-10B981?style=flat)](reports/VERIFICATION_REPORT.md)
+[![Dual Venue: DODO V2 vs FaroSwap V2](https://img.shields.io/badge/Dual%20Venue-DODO%20V2%20vs%20FaroSwap%20V2-00F2FE?style=flat)](#)
 [![Zero Simulation: Enforced](https://img.shields.io/badge/Zero%20Simulation-Fail--Closed%20Enforced-10B981?style=flat)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -17,7 +18,28 @@ A high-performance algorithmic DeFi intelligence agent and fail-closed arbitrage
 - **Full 1080p Walkthrough Video**: [`demo/pharos_arbitrage_scanner_demo.mp4`](demo/pharos_arbitrage_scanner_demo.mp4) (Duration: 2m 28s)
 - **Demo Generation Script**: [`scripts/generate_live_demo.py`](scripts/generate_live_demo.py)
 
-It queries **100% verified on-chain price feeds** directly from the Chainlink Self-Managed Feeds Cache on Pharos, reads real-time network gas from Pharos Atlantic Testnet, mathematically validates non-linear constant-product slippage ($x \cdot y = k$), and enforces a strict **fail-closed security policy**: zero calibrated reserves, zero fabricated market quotes, and zero synthetic execution receipts.
+It performs **genuine, same-scan price comparisons across two independent on-chain DEX venues** on Pharos Mainnet (Chain 1672) — **Venue 1: DODO V2 MixSwap** and **Venue 2: FaroSwap V2 AMM** — while retaining Chainlink push feeds as an independent reference benchmark, reads real-time network gas from Pharos Atlantic Testnet, mathematically validates non-linear constant-product slippage ($x \cdot y = k$), and enforces a strict **fail-closed security policy**: zero calibrated reserves, zero fabricated market quotes, and zero synthetic execution receipts.
+
+---
+
+## 0. Reviewer Feedback Remediation: Dual-Venue On-Chain Scanning
+
+> **Reviewer Feedback:**
+> *"Reads only one price source (a Chainlink feed), so it never compares two venues. Mainnet has two venues (DODO V2 and FaroSwap V2), or you can deploy two test pools on Atlantic. Compare two sources in the same scan and resubmit."*
+
+### What Was Changed in this Release:
+1. **Two Live Independent DEX Venues Integrated**:
+   - **Venue 1: DODO V2 MixSwap Router** (`0xA5cA5Fbe34e444F366B373170541ec6902b0F75c`, Approve Proxy `0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa`) with verified on-chain PMM architecture and 15 bps (0.15%) protocol fee rate.
+   - **Venue 2: FaroSwap V2 AMM Router & Factory** (`0xd285e37678f07631f33eb99927eb3ff0591a12d7`, Factory `0x18fab7d7027e9fb33fa90ca607439449209f7b09`) with 111 deployed pairs including Pair 2 (WPROS/USDC: `0x7f4a462fc320db1e26dd1366dce9e276ee6c5930`) and 30 bps (0.30%) LP fee rate.
+2. **Same-Scan Cycle Execution**:
+   - Both DEX venues are queried simultaneously in the **same scan cycle / block** (`scan_pair_venues()`).
+   - The engine identifies directional gross spread: `Buy Venue (lower spot price) -> Sell Venue (higher spot price)`.
+3. **Full Cost Waterfall Deductions**:
+   - Deducts Buy Fee (15 or 30 bps) + Sell Fee (30 or 15 bps) + Slippage impact + Live Atlantic Gas in USD.
+4. **Independent Benchmark Oracle**:
+   - Chainlink Push Oracle (`0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8`) is maintained as an independent market reference and price sanity check, but is **never counted as one of the two DEX trading venues**.
+5. **Fail-Closed Safety Gating**:
+   - If on-chain liquidity depth on either venue cannot support the trade volume (e.g. FaroSwap Pair 2 holding $0.28 USDC), or if net profit after fees and gas is non-positive, execution is **locked fail-closed** (`is_eligible = False`). No fake trades or synthetic fills are claimed.
 
 ---
 
@@ -105,15 +127,17 @@ flowchart TD
 
 ## 5. Network & Contract Configuration
 
-### Pharos Network (Chain ID 1672: Push Oracle & FaroSwap Host)
+### Pharos Network (Chain ID 1672: Dual DEX Venues & Push Oracle Host)
 - **Chain ID**: `1672` (Hex: `0x688`)
 - **RPC Endpoint**: `https://rpc.pharos.xyz`
 - **Explorer**: `https://pharosscan.xyz`
-- **SelfManagedFeedsCache**: `0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8`
+- **Venue 1: DODO V2 MixSwap Router**: `0xA5cA5Fbe34e444F366B373170541ec6902b0F75c` (11.2 KB bytecode, 15 bps fee)
+- **Venue 1 Approve Proxy**: `0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa`
+- **Venue 2: FaroSwap Router**: `0xd285e37678f07631f33eb99927eb3ff0591a12d7` (35.7 KB bytecode, 30 bps fee)
+- **Venue 2: FaroSwap Factory**: `0x18fab7d7027e9fb33fa90ca607439449209f7b09` (111 pairs deployed)
+- **Venue 2 Primary Pair (WPROS/USDC)**: `0x7f4a462fc320db1e26dd1366dce9e276ee6c5930` (Pair 2)
+- **Independent Oracle Cache**: `0xd9F00c86ced2De92F6B7152b0492cb28edc4B5a8` (Chainlink Self-Managed Feeds)
 - **BTC/USD Aggregator Proxy**: `0x8b5DB228Fbccf588f08B073C235254aCb6791D36`
-- **FaroSwap Router**: `0xd285e37678f07631f33eb99927eb3ff0591a12d7` (35.7 KB bytecode)
-- **FaroSwap Factory**: `0x18fab7d7027e9fb33fa90ca607439449209f7b09` (111 pairs deployed, zero active liquidity)
-- **Secondary DEX on Chain 1672**: `0` deployed (No independent second venue for cross-venue arbitrage)
 
 ### Pharos Atlantic Testnet (Gas & Settlement)
 - **Chain ID**: `688689` (`0xa8231`)

@@ -52,6 +52,22 @@
       "status": "UNAVAILABLE_NO_DEPLOYED_BYTECODE",
       "description": "No canonical AMM router bytecode deployed on Atlantic Testnet. Fail-closed enforced."
     },
+    "dodo_v2_router": {
+      "id": "dodo_v2_router",
+      "name": "DODO V2 MixSwap Router",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "address": "0xA5cA5Fbe34e444F366B373170541ec6902b0F75c",
+      "approve_proxy": "0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa",
+      "type": "DEX_PMM_ROUTER",
+      "fee_rate_bps": 15,
+      "fee_rate_ratio": 0.0015,
+      "gas_units": 165000,
+      "bytecode_verified": true,
+      "bytecode_size_bytes": 22406,
+      "status": "DEPLOYED",
+      "description": "DODO V2 MixSwap Router deployed on Pharos Mainnet (Chain 1672). PMM architecture supporting mixSwap, dodoMutliSwap, and externalSwap execution."
+    },
     "faroswap_router": {
       "id": "faroswap_router",
       "name": "FaroSwap Router",
@@ -60,12 +76,15 @@
       "address": "0xd285e37678f07631f33eb99927eb3ff0591a12d7",
       "factory_address": "0x18fab7d7027e9fb33fa90ca607439449209f7b09",
       "type": "AMM_CONSTANT_PRODUCT",
+      "fee_rate_bps": 30,
+      "fee_rate_ratio": 0.003,
+      "gas_units": 145000,
       "bytecode_verified": true,
       "bytecode_size_bytes": 35708,
       "deployed_pairs_count": 111,
-      "active_liquidity_pools_count": 0,
-      "status": "ZERO_LIQUIDITY_DEPLOYED",
-      "description": "FaroSwap Uniswap-V2 style router verified on Pharos Mainnet (Chain 1672). Factory deployed with 111 pairs, currently holding zero/dust reserves. No secondary DEX deployed on network."
+      "status": "DEPLOYED",
+      "primary_pair_wpros_usdc": "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930",
+      "description": "FaroSwap Uniswap-V2 style router verified on Pharos Mainnet (Chain 1672). Factory deployed with 111 pairs including WPROS/USDC (Pair 2)."
     }
   },
   "verified_tokens": {

@@ -19,7 +19,14 @@ if str(root_dir) not in sys.path:
     sys.path.insert(0, str(root_dir))
 
 from scanner.evaluator import evaluate_arbitrage
-from scanner.venues import get_supported_pairs, query_chainlink_feed, check_on_chain_amm_pool, check_faroswap_mainnet_dex
+from scanner.venues import (
+    get_supported_pairs,
+    query_chainlink_feed,
+    query_dodo_v2_venue,
+    query_faroswap_v2_venue,
+    check_on_chain_amm_pool,
+    check_faroswap_mainnet_dex
+)
 from scanner.costs import fetch_live_gas_price
 from scanner.payload import generate_arbitrage_calldata
 
@@ -61,8 +68,26 @@ class ScannerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # API: /api/faroswap-status
         if path == "/api/faroswap-status":
-            status = check_faroswap_mainnet_dex()
+            status = query_faroswap_v2_venue("PROS/USD")
             self._send_json(status)
+            return
+
+        # API: /api/dodo-status
+        if path == "/api/dodo-status":
+            status = query_dodo_v2_venue("PROS/USD")
+            self._send_json(status)
+            return
+
+        # API: /api/venues
+        if path == "/api/venues":
+            dodo = query_dodo_v2_venue("PROS/USD")
+            faro = query_faroswap_v2_venue("PROS/USD")
+            self._send_json({
+                "venues": {
+                    "dodo_v2": dodo,
+                    "faroswap_v2": faro
+                }
+            })
             return
 
         # API: /api/pairs

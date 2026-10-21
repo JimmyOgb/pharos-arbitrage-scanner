@@ -138,3 +138,16 @@ def test_multi_pair_batch_evaluation():
         assert res["pair"] == p
         assert res["data_mode"] == "PRODUCTION_LIVE_AUDIT"
         assert res["decision"]["status"] == "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+
+
+def test_dual_venue_spread_and_waterfall():
+    custom = {
+        "test_venue_a": {"name": "DODO V2 Model", "reserve_base": 100000.0, "reserve_quote": 250000.0, "fee_ratio": 0.0015, "gas_units": 165000},
+        "test_venue_b": {"name": "FaroSwap V2 Model", "reserve_base": 100000.0, "reserve_quote": 255000.0, "fee_ratio": 0.003, "gas_units": 145000}
+    }
+    res = evaluate_arbitrage("PROS/USD", trade_volume_usd=5000.0, custom_reserves=custom)
+    assert res["waterfall"] is not None
+    assert res["waterfall"]["gross_spread_usd"] > 0
+    assert res["waterfall"]["total_fees_usd"] > 0
+    assert res["waterfall"]["gas_cost_usd"] > 0
+    assert res["buy_venue"]["spot_price"] < res["sell_venue"]["spot_price"]

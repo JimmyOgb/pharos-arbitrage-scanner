@@ -46,59 +46,160 @@ def evaluate_arbitrage(
 
     venues_snapshot = scan_pair_venues(pair_name, custom_reserves)
 
-    # Mode 1: Production Live Evaluation
+    # Mode 1: Production Live Dual-Venue Evaluation (DODO V2 vs FaroSwap V2)
     if not venues_snapshot.get("is_test_fixture", False):
-        chainlink_venue = venues_snapshot["venues"]["chainlink_reference_oracle"]
-        amm_venue = venues_snapshot["venues"]["atlantic_amm_router"]
-        spot_price = chainlink_venue.get("reference_price_usd")
+        venue_a = venues_snapshot["venues"].get("dodo_v2") or venues_snapshot["venues"].get("venue_a")
+        venue_b = venues_snapshot["venues"].get("faroswap_v2") or venues_snapshot["venues"].get("venue_b")
+        chainlink_venue = venues_snapshot["venues"].get("chainlink_reference_oracle", {})
+        ref_price = chainlink_venue.get("reference_price_usd")
 
-        # Check oracle availability
-        if not chainlink_venue.get("is_available", False) or spot_price is None:
+        # 1. Require both DEX venues to be available in the same scan
+        if not venue_a or not venue_b or not venue_a.get("is_available") or not venue_b.get("is_available"):
+            missing = []
+            if not venue_a or not venue_a.get("is_available"):
+                missing.append("DODO V2")
+            if not venue_b or not venue_b.get("is_available"):
+                missing.append("FaroSwap V2")
             return {
                 "timestamp": venues_snapshot["timestamp"],
+                "scan_id": venues_snapshot.get("scan_id"),
                 "pair": pair_name,
                 "data_mode": "PRODUCTION_LIVE_AUDIT",
+                "comparison_mode": "DUAL_VENUE_SAME_SCAN",
                 "trade_volume_usd": trade_volume_usd,
                 "min_net_profit_usd": min_net_profit_usd,
                 "max_slippage_bps": max_slippage_bps,
-                "reference_oracle_price": None,
+                "reference_oracle_price": ref_price,
                 "oracle_venue": chainlink_venue,
-                "amm_venue": amm_venue,
+                "venue_a": venue_a,
+                "venue_b": venue_b,
                 "gas_details": live_gas_info,
                 "waterfall": None,
                 "decision": {
                     "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
                     "is_eligible": False,
-                    "reason": f"Live arbitrage unavailable — no verified liquidity. Reference oracle from Pharos RPC (Chain 1672) is unreachable ({chainlink_venue.get('error')}) and Atlantic Testnet (Chain 688689) has no deployed AMM liquidity pools."
+                    "reason": f"Live arbitrage unavailable: Dual-venue scan required. Missing/unreachable venues: {', '.join(missing)}."
                 }
             }
 
-        faroswap_venue = venues_snapshot["venues"].get("faroswap_router", {})
+        # 2. Compare the two venues in the same scan cycle
+        p_a = venue_a.get("spot_price") or 0.0
+        p_b = venue_b.get("spot_price") or 0.0
+
+        if p_a <= p_b:
+            buy_venue = venue_a
+            sell_venue = venue_b
+        else:
+            buy_venue = venue_b
+            sell_venue = venue_a
+
+        buy_spot = buy_venue["spot_price"]
+        sell_spot = sell_venue["spot_price"]
+        gross_spread_per_unit = sell_spot - buy_spot
+        gross_spread_pct = (gross_spread_per_unit / buy_spot) * 100.0 if buy_spot > 0 else 0.0
+        gross_spread_usd = trade_volume_usd * (gross_spread_per_unit / buy_spot) if buy_spot > 0 else 0.0
+
+        # Fee calculations
+        buy_fee_usd = trade_volume_usd * buy_venue.get("fee_ratio", 0.0015)
+        sell_fee_usd = trade_volume_usd * sell_venue.get("fee_ratio", 0.003)
+
+        # Depth check: check on-chain pool depth against trade volume
+        r_quote_buy = buy_venue.get("reserve_quote", 0.0)
+        r_quote_sell = sell_venue.get("reserve_quote", 0.0)
+        min_depth = min(r_quote_buy, r_quote_sell)
+        is_liquidity_insufficient = trade_volume_usd > min_depth or min_depth < 1.0
+
+        # Slippage calculations
+        if is_liquidity_insufficient:
+            buy_slippage_usd = trade_volume_usd * 0.05
+            sell_slippage_usd = trade_volume_usd * 0.05
+        else:
+            buy_slippage_usd = trade_volume_usd * 0.0005
+            sell_slippage_usd = trade_volume_usd * 0.0005
+
+        # Gas costs
+        gas_units_total = buy_venue.get("gas_units", 165000) + sell_venue.get("gas_units", 145000)
+        gas_gwei = live_gas_info.get("gas_price_gwei") if live_gas_info.get("gas_price_gwei") is not None else 10.0
+        gas_cost_data = calculate_gas_cost_usd(gas_units_total, gas_gwei)
+
+        waterfall = compute_net_waterfall(
+            trade_volume_usd=trade_volume_usd,
+            gross_spread_usd=gross_spread_usd,
+            gross_spread_pct=gross_spread_pct,
+            buy_fee_usd=buy_fee_usd,
+            sell_fee_usd=sell_fee_usd,
+            buy_slippage_usd=buy_slippage_usd,
+            sell_slippage_usd=sell_slippage_usd,
+            gas_cost_usd=gas_cost_data["gas_cost_usd"],
+            gas_units_total=gas_units_total
+        )
+
+        # Decision gating logic
+        if is_liquidity_insufficient:
+            status = "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+            is_eligible = False
+            reason = (
+                f"Live arbitrage unavailable -- no verified liquidity depth to execute volume safely. "
+                f"Same-scan comparison completed between DODO V2 (${venue_a['spot_price']:.4f}) and FaroSwap V2 (${venue_b['spot_price']:.4f}). "
+                f"Gross spread is {gross_spread_pct:.2f}%. "
+                f"However, requested trade volume ${trade_volume_usd:,.2f} exceeds verified on-chain pool depth (${min_depth:,.2f}). "
+                f"Live execution locked fail-closed."
+            )
+        elif gross_spread_per_unit <= 0:
+            status = "NEGATIVE_GROSS_SPREAD"
+            is_eligible = False
+            reason = f"Negative spread between venues: Buy {buy_venue['name']} (${buy_spot:.4f}) >= Sell {sell_venue['name']} (${sell_spot:.4f})."
+        elif waterfall["net_profit_usd"] < min_net_profit_usd:
+            status = "UNPROFITABLE_AFTER_COSTS"
+            is_eligible = False
+            reason = (
+                f"Same-scan comparison between DODO V2 (${venue_a['spot_price']:.4f}) and FaroSwap V2 (${venue_b['spot_price']:.4f}). "
+                f"Net profit ${waterfall['net_profit_usd']:.2f} is below minimum threshold ${min_net_profit_usd:.2f} after fees, slippage, and gas. "
+                f"Execution locked fail-closed."
+            )
+        else:
+            status = "OPPORTUNITY_IDENTIFIED"
+            is_eligible = True
+            reason = f"Profitable arbitrage opportunity across DODO V2 and FaroSwap V2 with net yield of ${waterfall['net_profit_usd']:.2f}."
 
         return {
             "timestamp": venues_snapshot["timestamp"],
+            "scan_id": venues_snapshot.get("scan_id"),
             "pair": pair_name,
             "data_mode": "PRODUCTION_LIVE_AUDIT",
+            "comparison_mode": "DUAL_VENUE_SAME_SCAN",
             "trade_volume_usd": trade_volume_usd,
             "min_net_profit_usd": min_net_profit_usd,
             "max_slippage_bps": max_slippage_bps,
-            "reference_oracle_price": spot_price,
+            "reference_oracle_price": ref_price,
             "oracle_venue": chainlink_venue,
-            "amm_venue": amm_venue,
-            "faroswap_venue": faroswap_venue,
+            "venue_a": venue_a,
+            "venue_b": venue_b,
+            "buy_venue": {
+                "id": buy_venue.get("id"),
+                "name": buy_venue["name"],
+                "spot_price": buy_spot,
+                "router": buy_venue.get("router_address"),
+                "fee_bps": buy_venue.get("fee_bps")
+            },
+            "sell_venue": {
+                "id": sell_venue.get("id"),
+                "name": sell_venue["name"],
+                "spot_price": sell_spot,
+                "router": sell_venue.get("router_address"),
+                "fee_bps": sell_venue.get("fee_bps")
+            },
+            "gross_spread": {
+                "per_unit_usd": round(gross_spread_per_unit, 4),
+                "spread_pct": round(gross_spread_pct, 4),
+                "gross_spread_usd": round(gross_spread_usd, 4)
+            },
             "gas_details": live_gas_info,
-            "waterfall": None,
+            "waterfall": waterfall,
             "decision": {
-                "status": "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY",
-                "is_eligible": False,
-                "reason": (
-                    f"Live arbitrage unavailable -- no verified liquidity. "
-                    f"Verified Chainlink reference price is ${spot_price:,.2f} on Pharos RPC (Chain ID 1672). "
-                    f"However, reference oracles are non-executable benchmark feeds, "
-                    f"FaroSwap DEX on Pharos Mainnet (Chain 1672) has 0 secondary DEXs deployed for cross-venue arbitrage, "
-                    f"and Pharos Atlantic Testnet (Chain ID 688689) currently has 0 deployed AMM liquidity pools or router contracts (0x bytecode). "
-                    f"Two independent executable venue quotes are required for real arbitrage."
-                )
+                "status": status,
+                "is_eligible": is_eligible,
+                "reason": reason
             }
         }
 

@@ -45,30 +45,39 @@ def cmd_live_gas(args):
 
 def format_live_audit_summary(eval_res: Dict[str, Any]) -> str:
     pair = eval_res["pair"]
-    spot = eval_res.get("reference_oracle_price")
+    oracle_price = eval_res.get("reference_oracle_price")
     oracle = eval_res.get("oracle_venue", {})
-    amm = eval_res.get("amm_venue", {})
+    va = eval_res.get("venue_a", {})
+    vb = eval_res.get("venue_b", {})
+    buy = eval_res.get("buy_venue", {})
+    sell = eval_res.get("sell_venue", {})
+    spread = eval_res.get("gross_spread", {})
+    waterfall = eval_res.get("waterfall") or {}
     dec = eval_res["decision"]
     gas = eval_res.get("gas_details", {})
 
-    status_icon = "[LIVE ARBITRAGE UNAVAILABLE - NO VERIFIED LIQUIDITY]"
+    status_icon = f"[{dec.get('status')}]"
 
     out = []
-    out.append(f"\n=======================================================")
+    out.append(f"\n========================================================================")
     out.append(f"Pair: {pair} | Mode: {eval_res.get('data_mode')} | Status: {status_icon}")
-    out.append(f"=======================================================")
-    out.append(f"  Reference Oracle Price  : ${spot:,.2f} USD (Non-executable benchmark)")
-    out.append(f"  Oracle Source           : {oracle.get('name')} | {oracle.get('network_name')}")
-    out.append(f"  Oracle Cache Address    : {oracle.get('contract_address')}")
-    if oracle.get("proxy_address"):
-        out.append(f"  Aggregator Proxy        : {oracle.get('proxy_address')} (Verified: {oracle.get('proxy_verified')})")
-    out.append(f"  Last Feed Update        : {oracle.get('updated_at_iso')} (Epoch: {oracle.get('updated_at_epoch')})")
-    out.append(f"  Atlantic Gas Price      : {gas.get('gas_price_gwei')} Gwei | Block #{gas.get('block_number')}")
-    out.append(f"  Atlantic Network        : {amm.get('network_name')}")
-    out.append(f"  AMM Deployed Pools      : {amm.get('deployed_pools_count')} pools ({amm.get('status')})")
-    out.append(f"  Decision Gate           : {dec['status']}")
-    out.append(f"  Truthfulness Notice     : {dec['reason']}")
-    out.append(f"=======================================================\n")
+    out.append(f"========================================================================")
+    out.append(f"  [Venue 1: DODO V2]       : ${va.get('spot_price', 0):,.4f} USD | Fee: {va.get('fee_bps', 15)} bps | Router: {va.get('router_address')}")
+    out.append(f"  [Venue 2: FaroSwap V2]   : ${vb.get('spot_price', 0):,.4f} USD | Fee: {vb.get('fee_bps', 30)} bps | Pair: {vb.get('pair_address')}")
+    if oracle_price is not None:
+        out.append(f"  [Reference Oracle]       : ${oracle_price:,.4f} USD (Chainlink Push Cache: {oracle.get('contract_address')})")
+    out.append(f"  ----------------------------------------------------------------------")
+    out.append(f"  Same-Scan Direction      : Buy {buy.get('name')} (${buy.get('spot_price', 0):,.4f}) -> Sell {sell.get('name')} (${sell.get('spot_price', 0):,.4f})")
+    out.append(f"  Gross Spread             : {spread.get('spread_pct', 0):.2f}% (${spread.get('per_unit_usd', 0):.4f}/unit | ${spread.get('gross_spread_usd', 0):,.2f} on ${eval_res.get('trade_volume_usd', 0):,.2f})")
+    out.append(f"  Waterfall - Buy Fee      : -${waterfall.get('buy_fee_usd', 0):.2f}")
+    out.append(f"  Waterfall - Sell Fee     : -${waterfall.get('sell_fee_usd', 0):.2f}")
+    out.append(f"  Waterfall - Slippage     : -${waterfall.get('total_slippage_usd', 0):.2f} (Buy: ${waterfall.get('buy_slippage_usd', 0):.2f}, Sell: ${waterfall.get('sell_slippage_usd', 0):.2f})")
+    out.append(f"  Waterfall - Network Gas  : -${waterfall.get('gas_cost_usd', 0):.4f} ({gas.get('gas_price_gwei')} Gwei | Block #{gas.get('block_number')})")
+    out.append(f"  Waterfall - Net Profit   : ${waterfall.get('net_profit_usd', 0):.2f} ({waterfall.get('net_profit_pct', 0):.2f}%)")
+    out.append(f"  ----------------------------------------------------------------------")
+    out.append(f"  Decision Gate Status     : {dec['status']} (is_eligible: {dec.get('is_eligible')})")
+    out.append(f"  Gating Rationale         : {dec['reason']}")
+    out.append(f"========================================================================\n")
     return "\n".join(out)
 
 

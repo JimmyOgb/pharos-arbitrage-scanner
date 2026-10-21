@@ -70,9 +70,32 @@ def test_check_faroswap_mainnet_dex():
         pytest.skip(f"Pharos Mainnet RPC temporarily unreachable: {data.get('message')}")
     assert data["chain_id"] == 1672
     assert data["is_deployed"] is True
-    assert data["status"] == "DEPLOYED_ZERO_LIQUIDITY"
+    assert data["status"] in ("DEPLOYED", "DEPLOYED_ZERO_LIQUIDITY")
     assert data["router_address"] == "0xd285e37678f07631f33eb99927eb3ff0591a12d7"
     assert data["factory_address"] == "0x18fab7d7027e9fb33fa90ca607439449209f7b09"
     assert data["deployed_pairs_count"] >= 100
-    assert data["secondary_dex_deployed"] is False
+
+
+def test_dodo_v2_venue_definition():
+    config = load_venues_config()
+    assert "dodo_v2_router" in config["venues"]
+    dodo = config["venues"]["dodo_v2_router"]
+    assert dodo["address"] == "0xA5cA5Fbe34e444F366B373170541ec6902b0F75c"
+    assert dodo["approve_proxy"] == "0x2afc65f51b8afd1db9618643f89f0b135eaaeeaa"
+    assert dodo["fee_rate_bps"] == 15
+    assert dodo["type"] == "DEX_PMM_ROUTER"
+
+
+def test_same_scan_dual_venues_present():
+    custom = {
+        "test_venue_a": {"name": "DODO V2 Model", "reserve_base": 100000.0, "reserve_quote": 250000.0, "fee_ratio": 0.0015},
+        "test_venue_b": {"name": "FaroSwap V2 Model", "reserve_base": 100000.0, "reserve_quote": 252000.0, "fee_ratio": 0.003}
+    }
+    scan = scan_pair_venues("PROS/USD", custom_reserves=custom)
+    assert scan["is_test_fixture"] is True
+    assert "test_venue_a" in scan["venues"]
+    assert "test_venue_b" in scan["venues"]
+    assert scan["venues"]["test_venue_a"]["spot_price"] > 0
+    assert scan["venues"]["test_venue_b"]["spot_price"] > 0
+
 
