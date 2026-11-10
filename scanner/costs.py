@@ -17,71 +17,65 @@ DEFAULT_PHRS_PRICE_USD = 2.50
 
 def fetch_mainnet_gas_price(
     rpc_url: str = PHAROS_MAINNET_RPC,
-    timeout: float = 6.0
+    timeout: float = 8.0,
+    retries: int = 2
 ) -> Dict[str, Any]:
     """
     Fetches real live gas price and latest block height directly from Pharos Mainnet (Chain ID: 1672).
     Used exclusively for Pharos Mainnet trade cost estimation.
     Fails closed if the RPC endpoint cannot be reached.
     """
-    payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "eth_gasPrice",
-        "params": []
-    }).encode("utf-8")
+    batch_payload = json.dumps([
+        {"jsonrpc": "2.0", "id": 1, "method": "eth_gasPrice", "params": []},
+        {"jsonrpc": "2.0", "id": 2, "method": "eth_blockNumber", "params": []}
+    ]).encode("utf-8")
 
-    block_payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 2,
-        "method": "eth_blockNumber",
-        "params": []
-    }).encode("utf-8")
+    last_error = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(
+                rpc_url,
+                data=batch_payload,
+                headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                res_map = {item["id"]: item.get("result") for item in data if isinstance(item, dict) and "id" in item}
+                gas_hex = res_map.get(1)
+                block_hex = res_map.get(2)
+                if not gas_hex or not block_hex:
+                    raise ValueError(f"Incomplete batch gas/block response: {data}")
 
-    try:
-        req = urllib.request.Request(
-            rpc_url,
-            data=payload,
-            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
-        )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            gas_wei = int(data["result"], 16)
-            gas_gwei = gas_wei / 1e9
+                gas_wei = int(gas_hex, 16)
+                gas_gwei = gas_wei / 1e9
+                block_number = int(block_hex, 16)
 
-        block_req = urllib.request.Request(
-            rpc_url,
-            data=block_payload,
-            headers={"Content-Type": "application/json", "User-Agent": "Pharos-Arbitrage-Scanner/0.2.0"}
-        )
-        with urllib.request.urlopen(block_req, timeout=timeout) as resp:
-            block_data = json.loads(resp.read().decode("utf-8"))
-            block_number = int(block_data["result"], 16)
+                return {
+                    "source": "PHAROS_MAINNET_RPC",
+                    "chain_id": 1672,
+                    "network_name": "Pharos Mainnet (Chain 1672)",
+                    "rpc_url": rpc_url,
+                    "gas_price_wei": gas_wei,
+                    "gas_price_gwei": round(gas_gwei, 4),
+                    "block_number": block_number,
+                    "is_live": True,
+                    "status": "HEALTHY"
+                }
+        except Exception as e:
+            last_error = e
 
-        return {
-            "source": "PHAROS_MAINNET_RPC",
-            "chain_id": 1672,
-            "network_name": "Pharos Mainnet (Chain 1672)",
-            "rpc_url": rpc_url,
-            "gas_price_wei": gas_wei,
-            "gas_price_gwei": round(gas_gwei, 4),
-            "block_number": block_number,
-            "is_live": True,
-            "status": "HEALTHY"
-        }
-    except Exception as e:
-        return {
-            "source": "PHAROS_MAINNET_RPC",
-            "chain_id": 1672,
-            "network_name": "Pharos Mainnet (Chain 1672)",
-            "rpc_url": rpc_url,
-            "gas_price_wei": None,
-            "gas_price_gwei": None,
-            "block_number": None,
-            "is_live": False,
-            "status": "UNAVAILABLE",
-            "error": f"Pharos Mainnet RPC unreachable: {str(e)}"
-        }
+    return {
+        "source": "PHAROS_MAINNET_RPC",
+        "chain_id": 1672,
+        "network_name": "Pharos Mainnet (Chain 1672)",
+        "rpc_url": rpc_url,
+        "gas_price_wei": None,
+        "gas_price_gwei": None,
+        "block_number": None,
+        "is_live": False,
+        "status": "UNAVAILABLE",
+        "error": f"Pharos Mainnet RPC unreachable: {str(last_error)}"
+    }
 
 
 def fetch_atlantic_gas_price(

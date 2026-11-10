@@ -48,8 +48,8 @@ def evaluate_arbitrage(
 
     # Mode 1: Production Live Dual-Venue Evaluation (DODO V2 vs FaroSwap V2)
     if not venues_snapshot.get("is_test_fixture", False):
-        venue_a = venues_snapshot["venues"].get("dodo_v2") or venues_snapshot["venues"].get("venue_a")
-        venue_b = venues_snapshot["venues"].get("faroswap_v2") or venues_snapshot["venues"].get("venue_b")
+        venue_a = venues_snapshot["venues"].get("venue_a")
+        venue_b = venues_snapshot["venues"].get("venue_b")
         chainlink_venue = venues_snapshot["venues"].get("chainlink_reference_oracle", {})
         ref_price = chainlink_venue.get("reference_price_usd")
 
@@ -61,10 +61,12 @@ def evaluate_arbitrage(
             missing = []
             if not venue_a or not venue_a.get("is_available") or p_a is None:
                 status_a = venue_a.get("status", "UNAVAILABLE") if venue_a else "NOT_FOUND"
-                missing.append(f"DODO V2 ({status_a})")
+                name_a = venue_a.get("name", "Venue 1") if venue_a else "Venue 1"
+                missing.append(f"{name_a} ({status_a})")
             if not venue_b or not venue_b.get("is_available") or p_b is None:
                 status_b = venue_b.get("status", "UNAVAILABLE") if venue_b else "NOT_FOUND"
-                missing.append(f"FaroSwap V2 ({status_b})")
+                name_b = venue_b.get("name", "Venue 2") if venue_b else "Venue 2"
+                missing.append(f"{name_b} ({status_b})")
 
             return {
                 "timestamp": venues_snapshot["timestamp"],
@@ -170,30 +172,41 @@ def evaluate_arbitrage(
         # Decision gating logic
         if is_liquidity_insufficient:
             status = "LIVE_ARBITRAGE_UNAVAILABLE_NO_VERIFIED_LIQUIDITY"
+            skip_reason = "INSUFFICIENT_LIQUIDITY"
             is_eligible = False
             reason = (
                 f"Live arbitrage unavailable -- no verified liquidity depth to execute volume safely. "
-                f"Same-scan comparison completed between DODO V2 (${venue_a['spot_price']:.4f}) and FaroSwap V2 (${venue_b['spot_price']:.4f}). "
+                f"Same-scan comparison completed between {venue_a['name']} (${venue_a['spot_price']:.4f}) and {venue_b['name']} (${venue_b['spot_price']:.4f}). "
                 f"Gross spread is {gross_spread_pct:.2f}%. "
                 f"However, requested trade volume ${trade_volume_usd:,.2f} exceeds verified on-chain pool depth (${min_depth:,.2f}). "
                 f"Live execution locked fail-closed."
             )
         elif gross_spread_per_unit <= 0:
             status = "NEGATIVE_GROSS_SPREAD"
+            skip_reason = "COSTS_EXCEED_SPREAD"
             is_eligible = False
-            reason = f"Negative spread between venues: Buy {buy_venue['name']} (${buy_spot:.4f}) >= Sell {sell_venue['name']} (${sell_spot:.4f})."
+            reason = f"Negative or zero gross spread between venues: Buy {buy_venue['name']} (${buy_spot:.4f}) >= Sell {sell_venue['name']} (${sell_spot:.4f})."
         elif waterfall["net_profit_usd"] < min_net_profit_usd:
             status = "UNPROFITABLE_AFTER_COSTS"
+            skip_reason = "NET_PROFIT_BELOW_THRESHOLD"
             is_eligible = False
             reason = (
-                f"Same-scan comparison between DODO V2 (${venue_a['spot_price']:.4f}) and FaroSwap V2 (${venue_b['spot_price']:.4f}). "
+                f"Same-scan comparison between {venue_a['name']} (${venue_a['spot_price']:.4f}) and {venue_b['name']} (${venue_b['spot_price']:.4f}). "
                 f"Net profit ${waterfall['net_profit_usd']:.2f} is below minimum threshold ${min_net_profit_usd:.2f} after fees, slippage, and gas. "
                 f"Execution locked fail-closed."
             )
         else:
             status = "OPPORTUNITY_IDENTIFIED"
+            skip_reason = None
             is_eligible = True
-            reason = f"Profitable arbitrage opportunity across DODO V2 and FaroSwap V2 with net yield of ${waterfall['net_profit_usd']:.2f}."
+            reason = f"Profitable arbitrage opportunity across {venue_a['name']} and {venue_b['name']} with net yield of ${waterfall['net_profit_usd']:.2f}."
+
+        decision_data = {
+            "status": status,
+            "skip_reason": skip_reason,
+            "is_eligible": is_eligible,
+            "reason": reason
+        }
 
         return {
             "timestamp": venues_snapshot["timestamp"],
@@ -229,11 +242,7 @@ def evaluate_arbitrage(
             },
             "gas_details": live_gas_info,
             "waterfall": waterfall,
-            "decision": {
-                "status": status,
-                "is_eligible": is_eligible,
-                "reason": reason
-            }
+            "decision": decision_data
         }
 
     # Mode 2: Isolated Mathematical Unit Test Harness

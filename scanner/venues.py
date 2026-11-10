@@ -33,7 +33,7 @@ def get_supported_pairs() -> List[str]:
     return list(config.get("verified_feeds", {}).keys())
 
 
-def make_rpc_call(rpc_url: str, method: str, params: list, timeout: float = 10.0, retries: int = 3) -> Any:
+def make_rpc_call(rpc_url: str, method: str, params: list, timeout: float = 6.0, retries: int = 2) -> Any:
     """Performs JSON-RPC call against verified node endpoint with automatic retry on SSL/network hiccups."""
     payload = json.dumps({
         "jsonrpc": "2.0",
@@ -58,7 +58,7 @@ def make_rpc_call(rpc_url: str, method: str, params: list, timeout: float = 10.0
         except Exception as e:
             last_error = e
             if attempt < retries - 1:
-                time.sleep(0.4 * (attempt + 1))
+                time.sleep(0.3 * (attempt + 1))
             else:
                 raise last_error
 
@@ -314,22 +314,19 @@ def query_dodo_v2_venue(
         }
 
 
-def query_faroswap_v2_venue(
+def query_faroswap_v2_pool(
     pair_name: str,
+    pool_address: str,
+    pool_name: str = "FaroSwap V2 AMM Pool",
+    pool_id: str = "faroswap_v2_pool",
     rpc_url: str = PHAROS_RPC,
-    timeout: float = 10.0,
+    timeout: float = 6.0,
     oracle_price: Optional[float] = None,
     block_num: Optional[int] = None
 ) -> Dict[str, Any]:
     """
-    Queries real on-chain FaroSwap V2 AMM Router and Pool reserves on Pharos Mainnet (Chain ID: 1672).
-    Router:  0xd285e37678f07631f33eb99927eb3ff0591a12d7
-    Factory: 0x18fab7d7027e9fb33fa90ca607439449209f7b09
-    Pair 2:  0x7f4a462fc320db1e26dd1366dce9e276ee6c5930 (WPROS / USDC)
-
-    Truthfulness: Only Pair 2 (WPROS/USDC) has a verified on-chain pool. Other asset pairs
-    (e.g., BTC/USD, ETH/USD) do not exist on FaroSwap and return QUOTE_UNAVAILABLE_NO_POOL.
-    Zero synthetic multipliers or fake reserves substituted.
+    Queries real on-chain FaroSwap V2 AMM Pool reserves directly on Pharos Mainnet (Chain ID: 1672).
+    Reads getReserves() (selector 0x0902f1ac) from verified contract address.
     """
     config = load_venues_config()
     faro_cfg = config.get("venues", {}).get("faroswap_router", {})
@@ -338,14 +335,12 @@ def query_faroswap_v2_venue(
     fee_ratio = faro_cfg.get("fee_rate_ratio", 0.003)
     fee_bps = faro_cfg.get("fee_rate_bps", 30)
     gas_units = faro_cfg.get("gas_units", 145000)
-    pair_address = faro_cfg.get("primary_pair_wpros_usdc", "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930")
 
     try:
         if pair_name.upper() in ("PROS/USD", "WPROS/USDC", "PROS/USDC"):
-            # Read reserves directly from Pair 2: selector 0x0902f1ac -> getReserves()
             r0 = 0.0
             r1 = 0.0
-            res_hex = make_rpc_call(rpc_url, "eth_call", [{"to": pair_address, "data": "0x0902f1ac"}, "latest"], timeout=timeout)
+            res_hex = make_rpc_call(rpc_url, "eth_call", [{"to": pool_address, "data": "0x0902f1ac"}, "latest"], timeout=timeout)
             if res_hex and len(res_hex) >= 130:
                 raw_r0 = int(res_hex[2:66], 16)
                 raw_r1 = int(res_hex[66:130], 16)
@@ -355,14 +350,14 @@ def query_faroswap_v2_venue(
             spot_price = round(r1 / r0, 4) if r0 > 0 else None
 
             return {
-                "id": "faroswap_v2",
-                "name": "FaroSwap V2 AMM",
+                "id": pool_id,
+                "name": pool_name,
                 "network": "Pharos Mainnet",
                 "chain_id": 1672,
                 "type": "AMM_CONSTANT_PRODUCT",
                 "router_address": router_addr,
                 "factory_address": factory_addr,
-                "pair_address": pair_address,
+                "pair_address": pool_address,
                 "base_token_address": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
                 "quote_token_address": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
                 "base_decimals": 18,
@@ -381,10 +376,9 @@ def query_faroswap_v2_venue(
                 "bytecode_verified": True
             }
         else:
-            # Pair has no verified liquidity pool on FaroSwap
             return {
-                "id": "faroswap_v2",
-                "name": "FaroSwap V2 AMM",
+                "id": pool_id,
+                "name": pool_name,
                 "network": "Pharos Mainnet",
                 "chain_id": 1672,
                 "type": "AMM_CONSTANT_PRODUCT",
@@ -411,11 +405,12 @@ def query_faroswap_v2_venue(
             }
     except Exception as e:
         return {
-            "id": "faroswap_v2",
-            "name": "FaroSwap V2 AMM",
+            "id": pool_id,
+            "name": pool_name,
             "network": "Pharos Mainnet",
             "chain_id": 1672,
             "router_address": router_addr,
+            "pair_address": pool_address,
             "spot_price": None,
             "reserve_base": 0.0,
             "reserve_quote": 0.0,
@@ -425,13 +420,40 @@ def query_faroswap_v2_venue(
         }
 
 
+def query_faroswap_v2_venue(
+    pair_name: str,
+    rpc_url: str = PHAROS_RPC,
+    timeout: float = 6.0,
+    oracle_price: Optional[float] = None,
+    block_num: Optional[int] = None
+) -> Dict[str, Any]:
+    """
+    Queries real on-chain FaroSwap V2 AMM Router and Pool 2 reserves on Pharos Mainnet (Chain ID: 1672).
+    Primary Pair 2: 0x7f4a462fc320db1e26dd1366dce9e276ee6c5930 (WPROS / USDC)
+    """
+    config = load_venues_config()
+    pair_address = config.get("venues", {}).get("faroswap_router", {}).get("primary_pair_wpros_usdc", "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930")
+    res = query_faroswap_v2_pool(
+        pair_name=pair_name,
+        pool_address=pair_address,
+        pool_name="FaroSwap Pool 2 (Primary)",
+        pool_id="faroswap_v2",
+        rpc_url=rpc_url,
+        timeout=timeout,
+        oracle_price=oracle_price,
+        block_num=block_num
+    )
+    return res
+
+
 def scan_pair_venues(
     pair_name: str,
     custom_reserves: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Reads pricing and venue states across verified on-chain sources in the SAME SCAN CYCLE.
-    Queries both Venue 1 (DODO V2) and Venue 2 (FaroSwap V2), plus the independent Chainlink oracle benchmark.
+    Queries two independent executable FaroSwap pools (Pool 2 and Pool 24 on Pharos Mainnet Chain 1672),
+    along with DODO V2 router verification and independent Chainlink push oracle benchmark.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
     now_ts = time.time()
@@ -493,25 +515,46 @@ def scan_pair_venues(
     # 2. Query Block Number once for unified scan epoch
     block_num = None
     try:
-        block_hex = make_rpc_call(PHAROS_RPC, "eth_blockNumber", [], timeout=8.0)
+        block_hex = make_rpc_call(PHAROS_RPC, "eth_blockNumber", [], timeout=6.0)
         block_num = int(block_hex, 16) if block_hex else None
     except Exception:
         pass
 
-    # 3. Query Venue A: DODO V2 MixSwap Router
-    dodo_data = query_dodo_v2_venue(pair_name, oracle_price=oracle_price, block_num=block_num)
+    # 3. Query Venue 1: FaroSwap Pool 2 (Primary WPROS/USDC Pool: 0x7f4a...5930)
+    config = load_venues_config()
+    pool2_addr = config.get("venues", {}).get("faroswap_v2_pool_2", {}).get("address", "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930")
+    pool24_addr = config.get("venues", {}).get("faroswap_v2_pool_24", {}).get("address", "0x8e3fdbef5cd72d2dae407db1dc61bff44d1dbe9f")
 
-    # 4. Query Venue B: FaroSwap V2 AMM Router & Pool
-    faroswap_data = query_faroswap_v2_venue(pair_name, oracle_price=oracle_price, block_num=block_num)
+    pool2_data = query_faroswap_v2_pool(
+        pair_name=pair_name,
+        pool_address=pool2_addr,
+        pool_name="FaroSwap Pool 2 (Primary)",
+        pool_id="faroswap_pool_2",
+        oracle_price=oracle_price,
+        block_num=block_num
+    )
+
+    # 4. Query Venue 2: FaroSwap Pool 24 (Secondary WPROS/USDC Pool: 0x8e3f...dbe9f)
+    pool24_data = query_faroswap_v2_pool(
+        pair_name=pair_name,
+        pool_address=pool24_addr,
+        pool_name="FaroSwap Pool 24 (Secondary)",
+        pool_id="faroswap_pool_24",
+        oracle_price=oracle_price,
+        block_num=block_num
+    )
+
+    # 5. Query DODO V2 Router (audited on-chain provenance)
+    dodo_data = query_dodo_v2_venue(pair_name, oracle_price=oracle_price, block_num=block_num)
 
     # Compute scan freshness
     updated_at = chainlink_data.get("updated_at_epoch")
     freshness = max(0.0, now_ts - updated_at) if updated_at and updated_at > 0 else 0.0
     is_stale = freshness > 86400 or (not chainlink_data.get("is_available", False))
 
-    dodo_avail = dodo_data.get("is_available", False) and (dodo_data.get("spot_price") is not None)
-    faro_avail = faroswap_data.get("is_available", False) and (faroswap_data.get("spot_price") is not None)
-    cross_comparable = dodo_avail and faro_avail
+    pool2_avail = pool2_data.get("is_available", False) and (pool2_data.get("spot_price") is not None)
+    pool24_avail = pool24_data.get("is_available", False) and (pool24_data.get("spot_price") is not None)
+    cross_comparable = pool2_avail and pool24_avail
 
     return {
         "scan_id": scan_id,
@@ -524,10 +567,12 @@ def scan_pair_venues(
         "cross_venue_comparable": cross_comparable,
         "comparison_status": "DUAL_VENUE_SAME_SCAN_ACTIVE" if cross_comparable else "CROSS_VENUE_COMPARISON_BLOCKED",
         "venues": {
-            "venue_a": dodo_data,
-            "venue_b": faroswap_data,
+            "venue_a": pool2_data,
+            "venue_b": pool24_data,
+            "faroswap_pool_2": pool2_data,
+            "faroswap_pool_24": pool24_data,
+            "faroswap_v2": pool2_data,
             "dodo_v2": dodo_data,
-            "faroswap_v2": faroswap_data,
             "chainlink_reference_oracle": chainlink_data
         }
     }

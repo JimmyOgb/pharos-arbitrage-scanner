@@ -84,7 +84,44 @@
       "deployed_pairs_count": 111,
       "status": "DEPLOYED",
       "primary_pair_wpros_usdc": "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930",
-      "description": "FaroSwap Uniswap-V2 style router verified on Pharos Mainnet (Chain 1672). Factory deployed with 111 pairs including WPROS/USDC (Pair 2)."
+      "secondary_pair_wpros_usdc": "0x8e3fdbef5cd72d2dae407db1dc61bff44d1dbe9f",
+      "description": "FaroSwap Uniswap-V2 style router verified on Pharos Mainnet (Chain 1672). Factory deployed with 111 pairs including Pool 2 (Primary WPROS/USDC) and Pool 24 (Secondary WPROS/USDC)."
+    },
+    "faroswap_v2_pool_2": {
+      "id": "faroswap_v2_pool_2",
+      "name": "FaroSwap Pool 2 (Primary)",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "pair_index": 2,
+      "address": "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930",
+      "base_token_address": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+      "quote_token_address": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+      "pair_name": "WPROS/USDC",
+      "fee_rate_bps": 30,
+      "fee_rate_ratio": 0.003,
+      "gas_units": 145000,
+      "bytecode_verified": true,
+      "type": "AMM_CONSTANT_PRODUCT",
+      "status": "DEPLOYED",
+      "description": "Primary FaroSwap WPROS/USDC pool contract deployed on Pharos Mainnet (Chain 1672)."
+    },
+    "faroswap_v2_pool_24": {
+      "id": "faroswap_v2_pool_24",
+      "name": "FaroSwap Pool 24 (Secondary)",
+      "network": "pharos_mainnet_preview",
+      "chain_id": 1672,
+      "pair_index": 24,
+      "address": "0x8e3fdbef5cd72d2dae407db1dc61bff44d1dbe9f",
+      "base_token_address": "0x52c48d4213107b20bc583832b0d951fb9ca8f0b0",
+      "quote_token_address": "0xc879c018db60520f4355c26ed1a6d572cdac1815",
+      "pair_name": "WPROS/USDC",
+      "fee_rate_bps": 30,
+      "fee_rate_ratio": 0.003,
+      "gas_units": 145000,
+      "bytecode_verified": true,
+      "type": "AMM_CONSTANT_PRODUCT",
+      "status": "DEPLOYED",
+      "description": "Secondary FaroSwap WPROS/USDC pool contract deployed on Pharos Mainnet (Chain 1672)."
     }
   },
   "verified_tokens": {

@@ -61,14 +61,19 @@ def format_live_audit_summary(eval_res: Dict[str, Any]) -> str:
     va_price_str = f"${va.get('spot_price'):,.4f} USD" if va.get("spot_price") is not None else "QUOTE UNAVAILABLE"
     vb_price_str = f"${vb.get('spot_price'):,.4f} USD" if vb.get("spot_price") is not None else "QUOTE UNAVAILABLE"
 
+    va_name = va.get('name', 'Venue 1')
+    vb_name = vb.get('name', 'Venue 2')
+    va_target = va.get('pair_address') or va.get('router_address') or 'None'
+    vb_target = vb.get('pair_address') or vb.get('router_address') or 'None'
+
     out = []
     out.append(f"\n========================================================================")
     out.append(f"Pair: {pair} | Mode: {eval_res.get('data_mode')} | Status: {status_icon}")
     out.append(f"========================================================================")
-    out.append(f"  [Venue 1: DODO V2]       : {va_price_str} | Fee: {va.get('fee_bps', 15)} bps | Router: {va.get('router_address')}")
-    out.append(f"  [Venue 2: FaroSwap V2]   : {vb_price_str} | Fee: {vb.get('fee_bps', 30)} bps | Pair: {vb.get('pair_address') or 'None'}")
+    out.append(f"  [Venue 1: {va_name}] : {va_price_str} | Fee: {va.get('fee_bps', 30)} bps | Contract: {va_target}")
+    out.append(f"  [Venue 2: {vb_name}] : {vb_price_str} | Fee: {vb.get('fee_bps', 30)} bps | Contract: {vb_target}")
     if oracle_price is not None:
-        out.append(f"  [Reference Oracle]       : ${oracle_price:,.4f} USD (Chainlink Push Cache: {oracle.get('contract_address')})")
+        out.append(f"  [Reference Oracle]       : ${oracle_price:,.4f} USD (Chainlink Push Cache: {oracle.get('cache_address') or oracle.get('contract_address')})")
     out.append(f"  ----------------------------------------------------------------------")
     if waterfall:
         out.append(f"  Same-Scan Direction      : Buy {buy.get('name')} (${buy.get('spot_price', 0):,.4f}) -> Sell {sell.get('name')} (${sell.get('spot_price', 0):,.4f})")
@@ -82,7 +87,8 @@ def format_live_audit_summary(eval_res: Dict[str, Any]) -> str:
         out.append(f"  Cross-Venue Comparison   : BLOCKED (Both venues must independently provide verified quotes)")
         out.append(f"  Waterfall Friction       : N/A (Execution locked fail-closed)")
     out.append(f"  ----------------------------------------------------------------------")
-    out.append(f"  Decision Gate Status     : {dec['status']} (is_eligible: {dec.get('is_eligible')})")
+    skip_tag = f" ({dec['skip_reason']})" if dec.get('skip_reason') else ""
+    out.append(f"  Decision Gate Status     : {dec['status']}{skip_tag} (is_eligible: {dec.get('is_eligible')})")
     out.append(f"  Gating Rationale         : {dec['reason']}")
     out.append(f"========================================================================\n")
     return "\n".join(out)

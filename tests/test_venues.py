@@ -99,3 +99,32 @@ def test_same_scan_dual_venues_present():
     assert scan["venues"]["test_venue_b"]["spot_price"] > 0
 
 
+def test_faroswap_dual_pools_registry_and_contracts():
+    config = load_venues_config()
+    assert "faroswap_v2_pool_2" in config["venues"]
+    assert "faroswap_v2_pool_24" in config["venues"]
+    p2 = config["venues"]["faroswap_v2_pool_2"]
+    p24 = config["venues"]["faroswap_v2_pool_24"]
+    assert p2["address"] == "0x7f4a462fc320db1e26dd1366dce9e276ee6c5930"
+    assert p24["address"] == "0x8e3fdbef5cd72d2dae407db1dc61bff44d1dbe9f"
+    assert p2["address"].lower() != p24["address"].lower()
+    assert p2["chain_id"] == 1672
+    assert p24["chain_id"] == 1672
+
+
+def test_live_same_scan_dual_faro_quotes():
+    scan = scan_pair_venues("PROS/USD")
+    if not scan.get("cross_venue_comparable"):
+        pytest.skip("Pharos Mainnet RPC temporarily unreachable")
+    va = scan["venues"]["venue_a"]
+    vb = scan["venues"]["venue_b"]
+    assert va["is_available"] is True
+    assert vb["is_available"] is True
+    assert va["spot_price"] > 0
+    assert vb["spot_price"] > 0
+    assert va["pair_address"].lower() != vb["pair_address"].lower()
+    assert va["chain_id"] == 1672
+    assert vb["chain_id"] == 1672
+
+
+
